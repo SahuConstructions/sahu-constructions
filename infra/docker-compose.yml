@@ -1,0 +1,14 @@
+﻿services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: sahu
+      POSTGRES_PASSWORD: sahu_pass
+      POSTGRES_DB: sahu_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

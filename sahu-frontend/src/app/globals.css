@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+/* ========================================
+   🌟 SAHU ERP GLOBAL THEME (Tailwind 4+)
+   ======================================== */
+@theme {
+  --color-brand-primary: #1e3a8a;
+  --color-brand-accent: #2563eb;
+  --color-brand-bg: #f8fafc;
+  --color-brand-text: #1e293b;
+  --color-brand-border: #e2e8f0;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+/* Dark mode theme overrides */
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-brand-primary: #2563eb;
+    --color-brand-accent: #60a5fa;
+    --color-brand-bg: #0f172a;
+    --color-brand-text: #f1f5f9;
+    --color-brand-border: #1e293b;
+  }
+}
+
+/* ========================================
+   🌈 GLOBAL ELEMENT STYLES
+   ======================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-brand-text);
+  color: var(--color-brand-text);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ========================================
+   🧭 CUSTOM SCROLLBAR
+   ======================================== */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(11, 31, 83, 0.884);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 116, 139, 0.6);
+}
+
+/* ========================================
+   ⚡ FADE-IN ANIMATION
+   ======================================== */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+/* globals.css or tailwind.config theme extension */
+
+:root {
+  --primary-blue: #2563eb;       /* Trustworthy Construction Blue */
+  --accent-yellow: #facc15;      /* Safety Yellow */
+  --accent-orange: #f97316;      /* Alert / Worksite Orange */
+  --surface-gray: #f3f4f6;       /* Concrete Gray */
+  --text-dark: #1f2937;          /* Slate Charcoal */
+  --text-muted: #6b7280;         /* Muted Gray */
+  --card-bg: #ffffff;            /* White Surface */
+  --border-light: #e5e7eb;       /* Border Lines */
+}
+

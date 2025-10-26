@@ -1,0 +1,320 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  id           Int          @id @default(autoincrement())
+  userId       Int          @unique
+  user         User         @relation(fields: [userId], references: [id])
+  name         String
+  phone        String?
+  managerId    Int?
+  manager      Employee?    @relation("ManagerRelation", fields: [managerId], references: [id])
+  subordinates Employee[]   @relation("ManagerRelation")
+  createdAt    DateTime     @default(now())
+  attendances  Attendance[]
+  leaves       Leave[]
+  timesheets   Timesheet[]
+
+  // Finance relations
+  salaries       EmployeeSalary[]
+  reimbursements Reimbursement[]
+  payrollItems   PayrollLineItem[]
+
+  // 🆕 Leave tracking fields
+  joinDate     DateTime   @default(now())
+  confirmed    Boolean    @default(false)
+
+  // 🆕 Salary-related fields for HR
+  basicSalary  Float?     // HR assigns base salary while creating employee
+  hra             Float?        // ✅ new field
+  otherAllowance  Float?        // ✅ new field
+  pf              Float?        // ✅ new field
+  pt              Float?        // ✅ new field
+  designation  String?    // e.g. "Engineer"
+  department   String?    // e.g. "Construction"
+  location     String?    // e.g. "Ghansoli"
+  dob          DateTime?  // for salary slip
+  pfNumber     String?    // PF / UAN details
+  uan          String?    // UAN number
+}
+
+model Attendance {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  type       String
+  timestamp  DateTime
+  location   String?
+  selfieUrl  String?
+  deviceId   String?
+  createdAt  DateTime @default(now())
+  employee   Employee @relation(fields: [employeeId], references: [id])
+}
+
+model Timesheet {
+  id         Int             @id @default(autoincrement())
+  date       DateTime
+  project    String
+  task       String
+  hours      Float
+  status     TimesheetStatus @default(PendingManager)
+  employeeId Int
+  employee   Employee        @relation(fields: [employeeId], references: [id])
+
+  reviewedById Int?
+  reviewedBy   User? @relation("UserReviewedTimesheets", fields: [reviewedById], references: [id])
+
+  comments  String?
+  createdAt DateTime @default(now())
+}
+
+model Leave {
+  id         Int           @id @default(autoincrement())
+  employeeId Int
+  type       String
+  startDate  DateTime
+  endDate    DateTime
+  days       Float
+  status     String        @default("PendingManager")
+  managerId  Int?
+  hrId       Int?
+  createdAt  DateTime      @default(now())
+  employee   Employee      @relation(fields: [employeeId], references: [id])
+  actions    LeaveAction[]
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  password     String
+  employee     Employee?
+  role         Role      @default(USER)
+  createdAt    DateTime  @default(now())
+  tempPassword String?
+
+  leaveActions           LeaveAction[]
+  payments               Payment[]
+  resolvedReimbursements Reimbursement[]       @relation("ResolvedBy")
+  reimbursementActions   ReimbursementAction[] // 👈 back relation
+  reviewedTimesheets     Timesheet[]           @relation("UserReviewedTimesheets")
+}
+
+model LeaveAction {
+  id        Int      @id @default(autoincrement())
+  leaveId   Int
+  userId    Int
+  role      String
+  action    String
+  comments  String?
+  createdAt DateTime @default(now())
+
+  leave Leave @relation(fields: [leaveId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  HR
+  USER
+  FINANCE // <-- added
+}
+
+enum PayrollStatus {
+  DRAFT
+  CALCULATED
+  FINALIZED
+  PUBLISHED
+}
+
+enum ComponentType {
+  EARNING
+  DEDUCTION
+}
+
+enum ValueType {
+  FIXED
+  PERCENTAGE
+}
+
+enum ReimbursementStatus {
+  PENDING_MANAGER
+  PENDING_HR
+  PENDING_FINANCE
+  APPROVED
+  REJECTED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  UTR
+  CHEQUE
+  BANK_TRANSFER
+  CASH
+}
+
+enum TimesheetStatus {
+  PendingManager
+  PendingHR
+  Approved
+  RejectedByManager
+  RejectedByHR
+  Overridden
+}
+
+model SalaryStructure {
+  id               Int               @id @default(autoincrement())
+  name             String
+  components       SalaryComponent[]
+  employeeSalaries EmployeeSalary[] // 👈 back relation
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model SalaryComponent {
+  id          Int             @id @default(autoincrement())
+  structure   SalaryStructure @relation(fields: [structureId], references: [id])
+  structureId Int
+  key         String
+  label       String
+  type        ComponentType
+  valueType   ValueType
+  value       Float
+  order       Int             @default(0)
+}
+
+model EmployeeSalary {
+  id            Int              @id @default(autoincrement())
+  employee      Employee         @relation(fields: [employeeId], references: [id])
+  employeeId    Int
+  structure     SalaryStructure? @relation(fields: [structureId], references: [id])
+  structureId   Int?
+  basic         Float
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdAt     DateTime         @default(now())
+}
+
+model PayrollRun {
+  id        Int               @id @default(autoincrement())
+  month     Int
+  year      Int
+  status    PayrollStatus     @default(DRAFT)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  items     PayrollLineItem[]
+  note      String?
+}
+
+model PayrollLineItem {
+  id           Int        @id @default(autoincrement())
+  payrollRun   PayrollRun @relation(fields: [payrollRunId], references: [id])
+  payrollRunId Int
+  employee     Employee   @relation(fields: [employeeId], references: [id])
+  employeeId   Int
+
+  // 🆕 Editable salary structure
+  basic          Float?    // base pay
+  hra            Float?    // house rent allowance
+  otherAllowance Float?    // misc. allowance
+  pf             Float?    // provident fund
+  pt             Float?    // professional tax
+  lopDays        Int?      // loss of pay days
+
+  gross        Float
+  netPay       Float
+  details      Json
+  isPaid       Boolean    @default(false)
+  payment      Payment?   @relation(fields: [paymentId], references: [id])
+  paymentId    Int?       @unique
+  payslip      Payslip?
+
+  @@unique([payrollRunId, employeeId])
+}
+
+model Payslip {
+  id                Int             @id @default(autoincrement())
+  payrollLineItem   PayrollLineItem @relation(fields: [payrollLineItemId], references: [id])
+  payrollLineItemId Int             @unique
+  pdfUrl            String?
+  generatedAt       DateTime        @default(now())
+  published         Boolean         @default(false)
+  publishedAt       DateTime?
+}
+
+model Reimbursement {
+  id          Int                 @id @default(autoincrement())
+  employee    Employee            @relation(fields: [employeeId], references: [id])
+  employeeId  Int
+  amount      Float
+  description String?
+  receiptUrl  String?
+  status      ReimbursementStatus @default(PENDING_MANAGER)
+  createdAt   DateTime            @default(now())
+
+  resolvedBy   User?     @relation("ResolvedBy", fields: [resolvedById], references: [id])
+  resolvedById Int?
+  resolvedAt   DateTime?
+  notes        String?
+
+  actions ReimbursementAction[] // 👈 back relation
+}
+
+model ReimbursementAction {
+  id              Int           @id @default(autoincrement())
+  reimbursement   Reimbursement @relation(fields: [reimbursementId], references: [id])
+  reimbursementId Int
+  user            User          @relation(fields: [userId], references: [id])
+  userId          Int
+  action          String
+  notes           String?
+  createdAt       DateTime      @default(now())
+}
+
+model Vendor {
+  id        Int             @id @default(autoincrement())
+  name      String
+  contact   String?
+  bankInfo  Json?
+  createdAt DateTime        @default(now())
+  invoices  VendorInvoice[]
+}
+
+model VendorInvoice {
+  id            Int           @id @default(autoincrement())
+  vendor        Vendor        @relation(fields: [vendorId], references: [id])
+  vendorId      Int
+  invoiceNumber String
+  amount        Float
+  dueDate       DateTime?
+  status        InvoiceStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  payments      Payment[]
+  note          String?
+}
+
+model Payment {
+  id              Int              @id @default(autoincrement())
+  amount          Float
+  paymentDate     DateTime         @default(now())
+  method          PaymentMethod
+  reference       String?
+  createdBy       User?            @relation(fields: [createdById], references: [id])
+  createdById     Int?
+  vendorInvoice   VendorInvoice?   @relation(fields: [vendorInvoiceId], references: [id])
+  vendorInvoiceId Int?
+  payrollLineItem PayrollLineItem?
+  attachments     Json?
+  note            String?
+}

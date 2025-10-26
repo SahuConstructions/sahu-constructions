@@ -1,0 +1,18 @@
+# Backend
+backend/node_modules/
+backend/dist/
+backend/.env
+
+# Frontend
+sahu-frontend/node_modules/
+sahu-frontend/.next/
+sahu-frontend/out/
+sahu-frontend/.env
+
+# Common
+*.log
+logs/
+.DS_Store
+.vscode/
+.idea/
+uploads/
