@@ -7,6 +7,7 @@ import api from "@/lib/api";
 import { Receipt, CheckCircle, XCircle, RefreshCcw } from "lucide-react";
 
 export default function ReimbursementsPage() {
+  useSlideUpAnimation();
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [reimbursements, setReimbursements] = useState<any[]>([]);
@@ -336,18 +337,28 @@ function Table({
   );
 }
 
-/* 🪄 Drawer Animation */
-const style = document.createElement("style");
-style.innerHTML = `
-@keyframes slideUp {
-  from { transform: translateY(100%); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+function useSlideUpAnimation() {
+  useEffect(() => {
+    if (typeof document === "undefined") return; // safety check
+
+    const style = document.createElement("style");
+    style.innerHTML = `
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .animate-slideUp {
+      animation: slideUp 0.3s ease-out;
+    }
+    `;
+    document.head.appendChild(style);
+
+    // optional cleanup (if page unmounts)
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 }
-.animate-slideUp {
-  animation: slideUp 0.3s ease-out;
-}
-`;
-document.head.appendChild(style);
 
 function getReadableStatus(status: string): string {
   const map: Record<string, string> = {
