@@ -41,46 +41,47 @@ export default function AttendancePage() {
     setDeviceId(id);
   };
 
-  const getUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-  
-          try {
-            // 🌍 Use CORS-friendly BigDataCloud API instead of OpenStreetMap
-            const res = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`
-            );
-  
-            if (!res.ok) throw new Error("Geocoding failed");
-            const data = await res.json();
-  
-            // Construct a readable address
-            const address =
-              data.locality ||
-              data.city ||
-              data.principalSubdivision ||
-              data.countryName ||
-              `${lat}, ${lon}`;
-  
-            setLocation(address);
-          } catch (err) {
-            console.error("Error fetching location name:", err);
-            setLocation(`${lat}, ${lon}`);
-          }
-        },
-        (error) => {
-          console.error("Location error:", error);
-          setLocation("Unable to fetch location");
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-      );
-    } else {
-      setLocation("Geolocation not supported");
-    }
-  };  
+const getUserLocation = () => {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+
+        try {
+          // 🌍 Use CORS-friendly BigDataCloud API instead of OpenStreetMap
+          const res = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`
+          );
+
+          if (!res.ok) throw new Error("Geocoding failed");
+          const data = await res.json();
+
+          // Construct a readable address
+          const address =
+            data.locality ||
+            data.city ||
+            data.principalSubdivision ||
+            data.countryName ||
+            `${lat}, ${lon}`;
+
+          setLocation(address);
+        } catch (err) {
+          console.error("Error fetching location name:", err);
+          setLocation(`${lat}, ${lon}`);
+        }
+      },
+      (error) => {
+        console.error("Location error:", error);
+        setLocation("Unable to fetch location");
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  } else {
+    setLocation("Geolocation not supported");
+  }
+};
+
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
