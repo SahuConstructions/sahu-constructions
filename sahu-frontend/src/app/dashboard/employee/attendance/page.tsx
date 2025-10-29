@@ -47,65 +47,64 @@ export default function AttendancePage() {
         async (position) => {
           const lat = position.coords.latitude;
           const lon = position.coords.longitude;
-  
+      
           try {
-            // 🌍 Use CORS-friendly BigDataCloud API instead of OpenStreetMap
-            const res = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`
-            );
-  
-            if (!res.ok) throw new Error("Geocoding failed");
+            // 🌍 Convert coordinates → readable address using OpenStreetMap (free)
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
             const data = await res.json();
-  
-            // Construct a readable address
-            const address =
-              data.locality ||
-              data.city ||
-              data.principalSubdivision ||
-              data.countryName ||
-              `${lat}, ${lon}`;
-  
+            const address = data.display_name || `${lat}, ${lon}`;
             setLocation(address);
           } catch (err) {
             console.error("Error fetching location name:", err);
             setLocation(`${lat}, ${lon}`);
           }
         },
-        (error) => {
-          console.error("Location error:", error);
-          setLocation("Unable to fetch location");
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-      );
-    } else {
-      setLocation("Geolocation not supported");
+        (error) => console.error("Location error:", error),
+      );      
     }
   };
-  
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-
-    // if (!selfie) {
-    //   setMessage("⚠️ Please take a selfie before punching in/out");
-    //   return;
-    // }
-
+  
+    if (!selfie) {
+      setMessage("⚠️ Please take a selfie before punching in/out");
+      return;
+    }
+  
     const formData = new FormData();
     formData.append("type", type);
     formData.append("timestamp", new Date().toISOString());
     formData.append("location", location);
     formData.append("deviceId", deviceId);
-    // formData.append("selfie", selfie);
-
+  
+    // 🧩 Compress selfie before upload (NEW)
+    const compressImage = async (file: File) => {
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")!;
+      const maxWidth = 800; // target width for compression
+      const scale = maxWidth / bitmap.width;
+      canvas.width = maxWidth;
+      canvas.height = bitmap.height * scale;
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise<Blob>((resolve) =>
+        canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.7)
+      );
+      return new File([blob], file.name, { type: "image/jpeg" });
+    };
+  
+    const compressed = await compressImage(selfie);
+    formData.append("selfie", compressed);
+  
     setLoading(true);
     setMessage("");
-
+  
     try {
       const res = await api.post("/attendance/punch", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-
+  
       if (res.data.ok) {
         setMessage(`✅ ${type} punch recorded successfully`);
         fetchAttendance();
@@ -114,12 +113,12 @@ export default function AttendancePage() {
         setMessage("❌ Failed to record attendance");
       }
     } catch (err) {
-      console.error(err);
+      console.error("Upload error:", err);
       setMessage("❌ Upload failed. Try again.");
     } finally {
       setLoading(false);
     }
-  };
+  };  
 
   return (
     <div className="space-y-6">
