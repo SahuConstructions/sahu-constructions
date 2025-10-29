@@ -1,18 +1,36 @@
-# Backend
+# === BACKEND ===
 backend/node_modules/
 backend/dist/
 backend/.env
 
-# Frontend
+# === FRONTEND ===
 sahu-frontend/node_modules/
 sahu-frontend/.next/
 sahu-frontend/out/
 sahu-frontend/.env
 
-# Common
-*.log
+# === INFRA ===
+infra/node_modules/
+infra/.env
+infra/dist/
+
+# === COMMON ===
+node_modules/
+.next/
+out/
+build/
+uploads/
 logs/
+npm-debug.log*
+
+# === ENV FILES ===
+.env
+.env.local
+.env.production
+.env.development
+
+# === IDE / MISC ===
 .DS_Store
 .vscode/
 .idea/
-uploads/
+.cache/
