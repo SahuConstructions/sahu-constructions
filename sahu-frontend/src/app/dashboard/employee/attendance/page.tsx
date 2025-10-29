@@ -47,22 +47,40 @@ export default function AttendancePage() {
         async (position) => {
           const lat = position.coords.latitude;
           const lon = position.coords.longitude;
-      
+  
           try {
-            // 🌍 Convert coordinates → readable address using OpenStreetMap (free)
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+            // 🌍 Use CORS-friendly BigDataCloud API instead of OpenStreetMap
+            const res = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`
+            );
+  
+            if (!res.ok) throw new Error("Geocoding failed");
             const data = await res.json();
-            const address = data.display_name || `${lat}, ${lon}`;
+  
+            // Construct a readable address
+            const address =
+              data.locality ||
+              data.city ||
+              data.principalSubdivision ||
+              data.countryName ||
+              `${lat}, ${lon}`;
+  
             setLocation(address);
           } catch (err) {
             console.error("Error fetching location name:", err);
             setLocation(`${lat}, ${lon}`);
           }
         },
-        (error) => console.error("Location error:", error),
-      );      
+        (error) => {
+          console.error("Location error:", error);
+          setLocation("Unable to fetch location");
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    } else {
+      setLocation("Geolocation not supported");
     }
-  };
+  };  
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
