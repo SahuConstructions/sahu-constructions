@@ -86,17 +86,17 @@ export default function AttendancePage() {
   const handleSubmit = async (e: any) => {
     e.preventDefault();
 
-    if (!selfie) {
-      setMessage("⚠️ Please take a selfie before punching in/out");
-      return;
-    }
+    // if (!selfie) {
+    //   setMessage("⚠️ Please take a selfie before punching in/out");
+    //   return;
+    // }
 
     const formData = new FormData();
     formData.append("type", type);
     formData.append("timestamp", new Date().toISOString());
     formData.append("location", location);
     formData.append("deviceId", deviceId);
-    formData.append("selfie", selfie);
+    // formData.append("selfie", selfie);
 
     setLoading(true);
     setMessage("");
