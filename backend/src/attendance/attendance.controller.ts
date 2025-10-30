@@ -92,4 +92,13 @@ export class AttendanceController {
       Number(month),
     );
   }
+
+  @Get('manager-view')
+  @Roles('MANAGER')
+  async getManagerAttendanceView(@Req() req, @Param('date') date?: string) {
+    const userId = req.user.userId;
+    // Allow optional date query param ?date=YYYY-MM-DD
+    const selectedDate = req.query.date || null;
+    return this.attendanceService.getManagerAttendanceView(userId, selectedDate);
+  }
 }

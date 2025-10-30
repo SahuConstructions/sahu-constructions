@@ -328,4 +328,87 @@ private shortenAddress(address: string): string {
       },
     });
   }
+
+  async getManagerAttendanceView(userId: number, date?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { employee: true },
+    });
+  
+    if (!user?.employee) {
+      throw new Error("Manager is not linked to an employee record.");
+    }
+  
+    const managerId = user.employee.id;
+  
+    const targetDate = date ? new Date(date) : new Date();
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+  
+    const employees = await this.prisma.employee.findMany({
+      where: { managerId },
+      include: {
+        attendances: {
+          where: { timestamp: { gte: startOfDay, lte: endOfDay } },
+          orderBy: { timestamp: 'asc' },
+        },
+      },
+    });
+  
+    const summary = { present: 0, late: 0, absent: 0 };
+  
+    const data = employees.map((emp) => {
+      const records = emp.attendances;
+      let status = 'Absent';
+      let inTime = null;
+      let outTime = null;
+      let inSelfie = null;
+      let outSelfie = null;
+      let hours = null;
+  
+      if (records.length > 0) {
+        const first = records[0];
+        const last = records[records.length - 1];
+  
+        inTime = new Date(first.timestamp);
+        outTime = records.length > 1 ? new Date(last.timestamp) : null;
+        inSelfie = first.selfieUrl || null;
+        outSelfie = last.selfieUrl || null;
+  
+        const checkInHour = inTime.getHours();
+        if (checkInHour > 10) {
+          status = 'Late';
+          summary.late++;
+        } else {
+          status = 'Present';
+        }
+  
+        summary.present++;
+  
+        if (inTime && outTime) {
+          const diffMs = outTime.getTime() - inTime.getTime();
+          hours = (diffMs / (1000 * 60 * 60)).toFixed(2);
+        }
+      } else {
+        summary.absent++;
+      }
+  
+      return {
+        employeeId: emp.id,
+        employeeName: emp.name,
+        status,
+        inTime,
+        outTime,
+        hours,
+        inSelfie,
+        outSelfie,
+        location: records[0]?.location || '-',
+      };
+    });
+  
+    return { summary, data };
+  } 
+  
 }
