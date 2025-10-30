@@ -8,6 +8,7 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AttendanceService } from './attendance.service';
@@ -94,11 +95,9 @@ export class AttendanceController {
   }
 
   @Get('manager-view')
-  @Roles('MANAGER')
-  async getManagerAttendanceView(@Req() req, @Param('date') date?: string) {
+  @Roles('MANAGER', 'ADMIN')
+  async getManagerAttendanceView(@Req() req, @Query('date') date?: string) {
     const userId = req.user.userId;
-    // Allow optional date query param ?date=YYYY-MM-DD
-    const selectedDate = req.query.date || null;
-    return this.attendanceService.getManagerAttendanceView(userId, selectedDate);
+    return this.attendanceService.getManagerAttendanceView(userId, date);
   }
 }
