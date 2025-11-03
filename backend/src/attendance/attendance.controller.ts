@@ -101,3 +101,4 @@ export class AttendanceController {
     return this.attendanceService.getManagerAttendanceView(userId, date);
   }
 }
+

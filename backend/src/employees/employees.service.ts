@@ -109,9 +109,56 @@ export class EmployeesService {
   }
 
   async removeEmployee(id: number) {
-    return this.prisma.employee.delete({
+    // ✅ Fetch employee to get userId
+    const employee = await this.prisma.employee.findUnique({
       where: { id },
+      include: { user: true },
     });
+
+    if (!employee) {
+      throw new BadRequestException('Employee not found');
+    }
+
+    // ✅ Delete related records first (cascading delete)
+    await this.prisma.$transaction([
+      // Delete attendance records
+      this.prisma.attendance.deleteMany({
+        where: { employeeId: id },
+      }),
+      // Delete leave records
+      this.prisma.leave.deleteMany({
+        where: { employeeId: id },
+      }),
+      // Delete timesheet records
+      this.prisma.timesheet.deleteMany({
+        where: { employeeId: id },
+      }),
+      // Delete salary records
+      this.prisma.employeeSalary.deleteMany({
+        where: { employeeId: id },
+      }),
+      // Delete reimbursement records
+      this.prisma.reimbursement.deleteMany({
+        where: { employeeId: id },
+      }),
+      // Delete payroll line items
+      this.prisma.payrollLineItem.deleteMany({
+        where: { employeeId: id },
+      }),
+      // Delete the employee
+      this.prisma.employee.delete({
+        where: { id },
+      }),
+      // Delete the associated user
+      this.prisma.user.delete({
+        where: { id: employee.userId },
+      }),
+    ]);
+
+    return {
+      ok: true,
+      message: '✅ Employee and all related records deleted successfully',
+    };
   }
 
   async resetEmployeePassword(employeeId: number) {
