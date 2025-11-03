@@ -34,3 +34,7 @@ npm-debug.log*
 .vscode/
 .idea/
 .cache/
+
+# === DEPLOYMENT ARCHIVES ===
+*.zip
+backend_deploy.zip
