@@ -362,31 +362,40 @@ private shortenAddress(address: string): string {
     const data = employees.map((emp) => {
       const records = emp.attendances;
       let status = 'Absent';
-      let inTime = null;
-      let outTime = null;
-      let inSelfie = null;
-      let outSelfie = null;
-      let hours = null;
-  
+      let inTime: Date | null = null;
+      let outTime: Date | null = null;
+      let inSelfie: string | null = null;
+      let outSelfie: string | null = null;
+      let hours: string | null = null;
+
       if (records.length > 0) {
         const first = records[0];
         const last = records[records.length - 1];
-  
+
         inTime = new Date(first.timestamp);
         outTime = records.length > 1 ? new Date(last.timestamp) : null;
         inSelfie = first.selfieUrl || null;
         outSelfie = last.selfieUrl || null;
-  
-        const checkInHour = inTime.getHours();
-        if (checkInHour > 10) {
+
+        // determine threshold from employee.inTime (HH:mm) or default 10:00
+        let thresholdHour = 10;
+        let thresholdMinute = 0;
+        if ((emp as any).inTime && typeof (emp as any).inTime === 'string') {
+          const [hh, mm] = ((emp as any).inTime as string).split(':').map((n) => parseInt(n, 10));
+          if (!isNaN(hh)) thresholdHour = hh;
+          if (!isNaN(mm)) thresholdMinute = mm;
+        }
+        const checkInMinutes = inTime.getHours() * 60 + inTime.getMinutes();
+        const thresholdMinutes = thresholdHour * 60 + thresholdMinute;
+        if (checkInMinutes > thresholdMinutes) {
           status = 'Late';
           summary.late++;
         } else {
           status = 'Present';
         }
-  
+
         summary.present++;
-  
+
         if (inTime && outTime) {
           const diffMs = outTime.getTime() - inTime.getTime();
           hours = (diffMs / (1000 * 60 * 60)).toFixed(2);
@@ -394,7 +403,7 @@ private shortenAddress(address: string): string {
       } else {
         summary.absent++;
       }
-  
+
       return {
         employeeId: emp.id,
         employeeName: emp.name,
@@ -407,8 +416,90 @@ private shortenAddress(address: string): string {
         location: records[0]?.location || '-',
       };
     });
-  
+ 
     return { summary, data };
-  } 
+  }
+
+  /**
+   * HR view: Attendance across all employees for a given date
+   */
+  async getHRAttendanceView(date?: string) {
+    const targetDate = date ? new Date(date) : new Date();
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const employees = await this.prisma.employee.findMany({
+      include: {
+        attendances: {
+          where: { timestamp: { gte: startOfDay, lte: endOfDay } },
+          orderBy: { timestamp: 'asc' },
+        },
+      },
+    });
+
+    const summary = { present: 0, late: 0, absent: 0 };
+
+    const data = employees.map((emp) => {
+      const records = emp.attendances;
+      let status = 'Absent';
+      let inTime: Date | null = null;
+      let outTime: Date | null = null;
+      let inSelfie: string | null = null;
+      let outSelfie: string | null = null;
+      let hours: string | null = null;
+
+      if (records.length > 0) {
+        const first = records[0];
+        const last = records[records.length - 1];
+
+        inTime = new Date(first.timestamp);
+        outTime = records.length > 1 ? new Date(last.timestamp) : null;
+        inSelfie = first.selfieUrl || null;
+        outSelfie = last.selfieUrl || null;
+
+        // determine threshold from employee.inTime (HH:mm) or default 10:00
+        let thresholdHour = 10;
+        let thresholdMinute = 0;
+        if ((emp as any).inTime && typeof (emp as any).inTime === 'string') {
+          const [hh, mm] = ((emp as any).inTime as string).split(':').map((n) => parseInt(n, 10));
+          if (!isNaN(hh)) thresholdHour = hh;
+          if (!isNaN(mm)) thresholdMinute = mm;
+        }
+        const checkInMinutes = inTime.getHours() * 60 + inTime.getMinutes();
+        const thresholdMinutes = thresholdHour * 60 + thresholdMinute;
+        if (checkInMinutes > thresholdMinutes) {
+          status = 'Late';
+          summary.late++;
+        } else {
+          status = 'Present';
+        }
+
+        summary.present++;
+
+        if (inTime && outTime) {
+          const diffMs = outTime.getTime() - inTime.getTime();
+          hours = (diffMs / (1000 * 60 * 60)).toFixed(2);
+        }
+      } else {
+        summary.absent++;
+      }
+
+      return {
+        employeeId: emp.id,
+        employeeName: emp.name,
+        status,
+        inTime,
+        outTime,
+        hours,
+        inSelfie,
+        outSelfie,
+        location: records[0]?.location || '-',
+      };
+    });
+
+    return { summary, data };
+  }
   
 }

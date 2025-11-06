@@ -23,6 +23,8 @@ export default function WorkforceSummaryPage() {
   const [selectedDetail, setSelectedDetail] = useState<any[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [shiftStartMin, setShiftStartMin] = useState<number | null>(null);
+  const [shiftEndMin, setShiftEndMin] = useState<number | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -57,6 +59,20 @@ export default function WorkforceSummaryPage() {
     setShowModal(true);
     setSelectedDetail([]);
     try {
+      // Fetch employee to get per-employee in/out time
+      const empRes = await api.get(`/employees/${id}`);
+      const emp = empRes.data;
+      const parseTime = (t?: string | null) => {
+        if (!t || typeof t !== 'string') return null;
+        const [hh, mm] = t.split(':').map((n: number | string) => parseInt(String(n), 10));
+        if (isNaN(hh)) return null;
+        return hh * 60 + (isNaN(mm) ? 0 : mm);
+      };
+      const startMin = parseTime(emp?.inTime) ?? (9 * 60 + 30);
+      const endMin = parseTime(emp?.outTime) ?? (17 * 60 + 30);
+      setShiftStartMin(startMin);
+      setShiftEndMin(endMin);
+
       const res = await api.get(
         `/attendance/report/employee-detail/${id}/${reportYear}/${reportMonth}`
       );
@@ -210,6 +226,8 @@ export default function WorkforceSummaryPage() {
         <AttendanceModal
           name={selectedEmployee}
           details={selectedDetail}
+          shiftStartMin={shiftStartMin}
+          shiftEndMin={shiftEndMin}
           onClose={() => setShowModal(false)}
         />
       )}
@@ -272,15 +290,23 @@ function Table({
 }
 
 /* 🧾 Attendance Detail Modal */
-function AttendanceModal({ name, details, onClose }: any) {
-  const SHIFT_START_MIN = 9 * 60 + 30;
-  const SHIFT_END_MIN = 17 * 60 + 30;
+function AttendanceModal({ name, details, onClose, shiftStartMin, shiftEndMin }: any) {
+  const SHIFT_START_MIN = typeof shiftStartMin === 'number' ? shiftStartMin : 9 * 60 + 30;
+  const SHIFT_END_MIN = typeof shiftEndMin === 'number' ? shiftEndMin : 17 * 60 + 30;
 
   const minutesFromTs = (ts: string | Date | null | undefined) => {
     if (!ts) return null;
     const d = new Date(ts);
     if (isNaN(d.getTime())) return null;
     return d.getHours() * 60 + d.getMinutes();
+  };
+
+  const toLabel = (m: number) => {
+    const hh = Math.floor(m / 60) % 24;
+    const mm = m % 60;
+    const ampm = hh >= 12 ? "PM" : "AM";
+    const hour12 = hh % 12 === 0 ? 12 : hh % 12;
+    return `${hour12}:${mm.toString().padStart(2, "0")} ${ampm}`;
   };
 
   return (
@@ -365,7 +391,7 @@ function AttendanceModal({ name, details, onClose }: any) {
         <div className="flex items-start gap-2 text-xs text-gray-600 mt-3">
           <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
           <span>
-            ⚠️ “Late” = IN after 9:30 AM · “Early” = OUT before 5:30 PM.
+            ⚠️ “Late” = IN after {toLabel(SHIFT_START_MIN)} · “Early” = OUT before {toLabel(SHIFT_END_MIN)}.
           </span>
         </div>
       </div>
