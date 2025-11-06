@@ -100,5 +100,12 @@ export class AttendanceController {
     const userId = req.user.userId;
     return this.attendanceService.getManagerAttendanceView(userId, date);
   }
+
+  @Get('hr-view')
+  @Roles('HR', 'ADMIN')
+  async getHRAttendanceView(@Query('date') date?: string) {
+    return this.attendanceService.getHRAttendanceView(date);
+  }
+
 }
 

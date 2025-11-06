@@ -1,6 +1,5 @@
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -30,6 +29,10 @@ model Employee {
   // 🆕 Leave tracking fields
   joinDate     DateTime   @default(now())
   confirmed    Boolean    @default(false)
+
+  // 🆕 Shift timing (per-employee)
+  inTime       String?
+  outTime      String?
 
   // 🆕 Salary-related fields for HR
   basicSalary  Float?     // HR assigns base salary while creating employee

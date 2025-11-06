@@ -37,6 +37,9 @@ export class EmployeesService {
     dob?: Date;
     pfNumber?: string;
     uan?: string;
+    joinDate?: Date;
+    inTime?: string;
+    outTime?: string;
   }) {
     const allowedRoles: Role[] = ['USER', 'MANAGER', 'HR', 'ADMIN'];
     const requestedRole = dto.role ? dto.role.toUpperCase() : 'USER';
@@ -87,6 +90,9 @@ export class EmployeesService {
         dob: dto.dob ? new Date(dto.dob) : null,
         pfNumber: dto.pfNumber || null,
         uan: dto.uan || null,
+        joinDate: dto.joinDate ? new Date(dto.joinDate) : undefined,
+        inTime: dto.inTime || null,
+        outTime: dto.outTime || null,
       },
     });
 

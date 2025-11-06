@@ -59,6 +59,9 @@ export default function AddEmployeePage() {
       dob: getVal("dob") || null,
       pfNumber: getVal("pfNumber"),
       uan: getVal("uan"),
+      joinDate: getVal("joinDate") || null,
+      inTime: getVal("inTime") || null,
+      outTime: getVal("outTime") || null,
     };
 
     try {
@@ -278,6 +281,36 @@ export default function AddEmployeePage() {
                 name="uan"
                 type="text"
                 placeholder="e.g. 1002938475"
+                className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+
+            {/* Joining and Shift Timing */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">Date of Joining</label>
+              <input
+                name="joinDate"
+                type="date"
+                className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700">In Time</label>
+              <input
+                name="inTime"
+                type="time"
+                placeholder="HH:MM"
+                className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700">Out Time</label>
+              <input
+                name="outTime"
+                type="time"
+                placeholder="HH:MM"
                 className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
               />
             </div>
