@@ -74,6 +74,7 @@ export default function Sidebar({ isOpen, toggle }: SidebarProps) {
 
   const HR_ITEMS = [
     { id: "overview", label: "Overview", path: "/dashboard/hr", icon: <HomeIcon size={18} /> },
+    { id: "attendance", label: "Attendance", path: "/dashboard/hr/attendance", icon: <Clock size={18} /> },
     { id: "employees", label: "Employees", path: "/dashboard/hr/employees", icon: <Users size={18} />  },
     { id: "leaves", label: "Leaves", path: "/dashboard/hr/leaves", icon: <CalendarDays size={18} />  },
     { id: "timesheets", label: "Timesheets", path: "/dashboard/hr/timesheets", icon: <FileText size={18} />  },
