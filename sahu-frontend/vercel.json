@@ -1,9 +1,0 @@
-{
-    "rewrites": [
-      {
-        "source": "/api/:path*",
-        "destination": "http://sahu-backend-env.eba-ufqwi7sq.ap-south-1.elasticbeanstalk.com/api/:path*"
-      }
-    ]
-  }
-  
