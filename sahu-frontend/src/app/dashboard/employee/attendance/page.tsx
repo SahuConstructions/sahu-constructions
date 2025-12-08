@@ -5,6 +5,7 @@ import { MapPin, Camera, Clock } from "lucide-react";
 import api from "@/lib/api";
 import { getUserFromToken } from "@/lib/auth";
 import { useToast } from "@/context/ToastContext";
+import { compressImage } from "@/lib/imageCompressor";
 
 export default function AttendancePage() {
   const [records, setRecords] = useState<any[]>([]);
@@ -73,18 +74,22 @@ export default function AttendancePage() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("type", type);
-    formData.append("timestamp", new Date().toISOString());
-    formData.append("location", location);
-    formData.append("deviceId", deviceId);
-    formData.append("selfie", selfie);
-
     setLoading(true);
 
     try {
+      // 📱 Compress image for mobile uploads (reduces to ~1MB max)
+      const compressedSelfie = await compressImage(selfie, 1, 1280);
+
+      const formData = new FormData();
+      formData.append("type", type);
+      formData.append("timestamp", new Date().toISOString());
+      formData.append("location", location);
+      formData.append("deviceId", deviceId);
+      formData.append("selfie", compressedSelfie);
+
       const res = await api.post("/attendance/punch", formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        timeout: 60000, // 60 second timeout for mobile uploads
       });
 
       if (res.data.ok) {
@@ -94,9 +99,15 @@ export default function AttendancePage() {
       } else {
         toast.error("Failed to record attendance");
       }
-    } catch (err) {
-      console.error(err);
-      toast.error("Upload failed. Try again.");
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      if (err.code === 'ECONNABORTED') {
+        toast.error("Upload timed out. Please try again.");
+      } else if (err.response?.status === 413) {
+        toast.error("File too large. Please try again.");
+      } else {
+        toast.error("Upload failed. Please check your connection and try again.");
+      }
     } finally {
       setLoading(false);
     }
