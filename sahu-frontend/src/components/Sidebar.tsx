@@ -268,7 +268,7 @@ export default function Sidebar({ isOpen, toggle, isCollapsed = false, toggleCol
 
                   {/* 🔔 Badge */}
                   {!isCollapsed && getBadgeCount(item.id) > 0 && (
-                    <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                    <span className="ml-auto bg-blue-500 text-slate-200 text-[9px] font-bold px-1 py-0 rounded-full min-w-[16px] text-center align-middle">
                       {getBadgeCount(item.id)}
                     </span>
                   )}
