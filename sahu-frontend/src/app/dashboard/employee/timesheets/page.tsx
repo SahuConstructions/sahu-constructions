@@ -27,6 +27,7 @@ export default function TimesheetsPage() {
   // 🧭 Filters
   const [month, setMonth] = useState<number>(dayjs().month() + 1);
   const [year, setYear] = useState<number>(dayjs().year());
+  const [status, setStatus] = useState<string>("All");
 
   useEffect(() => {
     fetchTimesheets();
@@ -157,6 +158,17 @@ export default function TimesheetsPage() {
             </option>
           ))}
         </select>
+
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="border rounded-lg px-2 py-1 text-sm focus:ring-indigo-500"
+        >
+          <option value="All">All Statuses</option>
+          <option value="Approved">Approved</option>
+          <option value="Pending">Pending</option>
+          <option value="Rejected">Rejected</option>
+        </select>
       </div>
 
       {/* Timesheet Form */}
@@ -228,7 +240,7 @@ export default function TimesheetsPage() {
               No timesheet entries found for this period
             </p>
           ) : (
-            myTimesheets.map((t, i) => {
+            myTimesheets.filter(t => status === "All" || (status === "Pending" ? t.status?.includes("Pending") : t.status?.includes(status))).map((t, i) => {
               const isExpanded = expanded === i;
               return (
                 <div
@@ -268,10 +280,10 @@ export default function TimesheetsPage() {
                         <span className="font-medium text-gray-800">Status:</span>{" "}
                         <span
                           className={`${t.status === "Approved"
-                              ? "text-green-600"
-                              : t.status?.includes("Reject")
-                                ? "text-red-600"
-                                : "text-yellow-600"
+                            ? "text-green-600"
+                            : t.status?.includes("Reject")
+                              ? "text-red-600"
+                              : "text-yellow-600"
                             }`}
                         >
                           {t.status}
@@ -308,7 +320,7 @@ export default function TimesheetsPage() {
                   </td>
                 </tr>
               ) : (
-                myTimesheets.map((t, i) => (
+                myTimesheets.filter(t => status === "All" || (status === "Pending" ? t.status?.includes("Pending") : t.status?.includes(status))).map((t, i) => (
                   <tr
                     key={i}
                     className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"
@@ -322,10 +334,10 @@ export default function TimesheetsPage() {
                     <td className="py-2 px-4">{t.hours}</td>
                     <td
                       className={`py-2 px-4 font-medium ${t.status === "Approved"
-                          ? "text-green-600"
-                          : t.status?.includes("Reject")
-                            ? "text-red-600"
-                            : "text-yellow-600"
+                        ? "text-green-600"
+                        : t.status?.includes("Reject")
+                          ? "text-red-600"
+                          : "text-yellow-600"
                         }`}
                     >
                       {t.status}
@@ -339,7 +351,7 @@ export default function TimesheetsPage() {
       </div>
 
       {/* Toast */}
-      
+
     </div>
   );
 }

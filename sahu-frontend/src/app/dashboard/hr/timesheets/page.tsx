@@ -19,6 +19,11 @@ export default function HrTimesheetApprovalsPage() {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
 
+  // 🔹 History filters
+  const [filterMonth, setFilterMonth] = useState<number>(dayjs().month() + 1);
+  const [filterYear, setFilterYear] = useState<number>(dayjs().year());
+  const [filterStatus, setFilterStatus] = useState<string>("ALL");
+
   useEffect(() => {
     const u = getUserFromToken();
     if (!u || u.role !== "HR") {
@@ -172,37 +177,61 @@ export default function HrTimesheetApprovalsPage() {
 
       {/* 📜 Timesheet History */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          Timesheet History
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            Timesheet History
+          </h2>
+
+          {/* 🔹 Filter Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            <select value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))} className="border rounded-md px-2 py-1.5 text-sm bg-white">
+              {Array.from({ length: 12 }, (_, i) => (<option key={i + 1} value={i + 1}>{dayjs().month(i).format("MMM")}</option>))}
+            </select>
+            <select value={filterYear} onChange={(e) => setFilterYear(Number(e.target.value))} className="border rounded-md px-2 py-1.5 text-sm bg-white">
+              {Array.from({ length: 5 }, (_, i) => { const year = dayjs().year() - 2 + i; return <option key={year} value={year}>{year}</option>; })}
+            </select>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="border rounded-md px-2 py-1.5 text-sm bg-white">
+              <option value="ALL">All Statuses</option>
+              <option value="Approved">Approved</option>
+              <option value="PendingHR">Pending</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          {timesheets.filter(t => t.status !== "PendingHR").length === 0 ? (
-            <p className="text-gray-600 text-sm">No history found.</p>
-          ) : (
-            <Table
-              headers={[
-                "Employee",
-                "Date",
-                "Project",
-                "Task",
-                "Hours",
-                "Status",
-              ]}
-              rows={timesheets
-                .filter(t => t.status !== "PendingHR")
-                .map((t) => [
-                  <div key={t.id + 'user_hist'} className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-gray-600" />
-                    {t.employee?.name || "-"}
-                  </div>,
-                  t.date?.substring(0, 10),
-                  t.project,
-                  t.task,
-                  t.hours,
-                  <StatusBadge key={t.id + 'badge_hist'} status={t.status} />,
-                ])}
-            />
-          )}
+          {(() => {
+            const filteredHistory = timesheets
+              .filter(t => t.status !== "PendingHR")
+              .filter(t => { const date = dayjs(t.date); return date.month() + 1 === filterMonth && date.year() === filterYear; })
+              .filter(t => filterStatus === "ALL" || t.status?.includes(filterStatus));
+
+            return filteredHistory.length === 0 ? (
+              <p className="text-gray-600 text-sm">No history found for selected filters.</p>
+            ) : (
+              <Table
+                headers={[
+                  "Employee",
+                  "Date",
+                  "Project",
+                  "Task",
+                  "Hours",
+                  "Status",
+                ]}
+                rows={filteredHistory
+                  .map((t) => [
+                    <div key={t.id + 'user_hist'} className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-gray-600" />
+                      {t.employee?.name || "-"}
+                    </div>,
+                    t.date?.substring(0, 10),
+                    t.project,
+                    t.task,
+                    t.hours,
+                    <StatusBadge key={t.id + 'badge_hist'} status={t.status} />,
+                  ])}
+              />
+            );
+          })()}
         </div>
       </div>
 

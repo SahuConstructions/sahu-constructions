@@ -6,6 +6,7 @@ import { getUserFromToken } from "@/lib/auth";
 import api from "@/lib/api";
 import { Receipt, CheckCircle, XCircle, RefreshCcw } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
+import dayjs from "dayjs";
 
 export default function ReimbursementsPage() {
   const router = useRouter();
@@ -15,6 +16,12 @@ export default function ReimbursementsPage() {
   const [history, setHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // 🔹 History filters
+  const [filterMonth, setFilterMonth] = useState<number>(dayjs().month() + 1);
+  const [filterYear, setFilterYear] = useState<number>(dayjs().year());
+  const [filterStatus, setFilterStatus] = useState<string>("ALL");
+
   const toast = useToast();
 
   useEffect(() => {
@@ -105,139 +112,144 @@ export default function ReimbursementsPage() {
           </button>
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden sm:block bg-white rounded-xl shadow-sm border border-gray-100 p-6 overflow-x-auto">
-          {reimbursements.length === 0 ? (
-            <p className="text-gray-600 text-sm">No reimbursement requests available.</p>
-          ) : (
-            <Table
-              headers={[
-                "Employee",
-                "Amount",
-                "Description",
-                "Status",
-                "Notes",
-                "Actions",
-                "History",
-              ]}
-              rows={reimbursements.map((r) => [
-                <span key="emp" className="font-medium text-gray-800 whitespace-nowrap">
-                  {r.employee?.name}
-                </span>,
-                <span key="amt" className="font-semibold text-gray-800 whitespace-nowrap">
-                  ₹{r.amount}
-                </span>,
-                <span key="desc" className="text-gray-600 break-words max-w-[200px]">
-                  {r.description || "-"}
-                </span>,
-                <StatusBadge key="status" status={getReadableStatus(r.status)} />,
-                <input
-                  key="note"
-                  type="text"
-                  placeholder="Add note"
-                  value={resolutionNotes[r.id] || ""}
-                  onChange={(e) =>
-                    setResolutionNotes({ ...resolutionNotes, [r.id]: e.target.value })
-                  }
-                  className="border rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 w-[120px]"
-                />,
-                r.status === "PENDING_FINANCE" ? (
-                  <div key="actions" className="flex items-center gap-2 justify-center">
-                    <button
-                      onClick={() => resolveReimbursement(r.id, "APPROVED")}
-                      className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md text-xs font-medium transition"
-                    >
-                      <CheckCircle size={13} /> Approve
-                    </button>
-                    <button
-                      onClick={() => resolveReimbursement(r.id, "REJECTED")}
-                      className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-md text-xs font-medium transition"
-                    >
-                      <XCircle size={13} /> Reject
-                    </button>
-                  </div>
-                ) : (
-                  <span key="resolved" className="text-gray-500 text-sm italic">
-                    Resolved
-                  </span>
-                ),
-                <button
-                  key="view"
-                  onClick={() => fetchHistory(r.id)}
-                  className="text-blue-600 underline text-xs font-medium hover:text-blue-800 whitespace-nowrap"
-                >
-                  View
-                </button>,
-              ])}
-            />
-          )}
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="sm:hidden space-y-4">
-          {reimbursements.length === 0 ? (
-            <p className="text-gray-600 text-sm text-center">
-              No reimbursement requests available.
-            </p>
-          ) : (
-            reimbursements.map((r) => (
-              <div
-                key={r.id}
-                className="bg-white rounded-xl border shadow-sm p-4 space-y-2"
-              >
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold text-gray-800">{r.employee?.name}</span>
-                  <StatusBadge status={getReadableStatus(r.status)} />
-                </div>
-                <div className="text-sm text-gray-600">
-                  <p>
-                    <span className="font-medium text-gray-700">Amount:</span> ₹{r.amount}
-                  </p>
-                  <p>
-                    <span className="font-medium text-gray-700">Description:</span>{" "}
-                    {r.description || "-"}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 mt-2">
-                  <input
-                    type="text"
-                    placeholder="Add note"
-                    value={resolutionNotes[r.id] || ""}
-                    onChange={(e) =>
-                      setResolutionNotes({ ...resolutionNotes, [r.id]: e.target.value })
-                    }
-                    className="border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
-                  />
-                  {r.status === "PENDING_FINANCE" ? (
-                    <div className="flex gap-2 justify-between">
+        {/* 🕒 Pending Approvals */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            Pending Approvals
+            <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded-full">
+              {reimbursements.filter(r => r.status === "PENDING_FINANCE").length}
+            </span>
+          </h2>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 overflow-x-auto">
+            {reimbursements.filter(r => r.status === "PENDING_FINANCE").length === 0 ? (
+              <p className="text-gray-600 text-sm">No pending approvals found.</p>
+            ) : (
+              <Table
+                headers={[
+                  "Employee",
+                  "Amount",
+                  "Description",
+                  "Status",
+                  "Notes",
+                  "Actions",
+                  "History",
+                ]}
+                rows={reimbursements
+                  .filter(r => r.status === "PENDING_FINANCE")
+                  .map((r) => [
+                    <span key="emp" className="font-medium text-gray-800 whitespace-nowrap">
+                      {r.employee?.name}
+                    </span>,
+                    <span key="amt" className="font-semibold text-gray-800 whitespace-nowrap">
+                      ₹{r.amount}
+                    </span>,
+                    <span key="desc" className="text-gray-600 break-words max-w-[200px]">
+                      {r.description || "-"}
+                    </span>,
+                    <StatusBadge key="status" status={getReadableStatus(r.status)} />,
+                    <input
+                      key="note"
+                      type="text"
+                      placeholder="Add note"
+                      value={resolutionNotes[r.id] || ""}
+                      onChange={(e) =>
+                        setResolutionNotes({ ...resolutionNotes, [r.id]: e.target.value })
+                      }
+                      className="border rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 w-[120px]"
+                    />,
+                    <div key="actions" className="flex items-center gap-2 justify-center">
                       <button
                         onClick={() => resolveReimbursement(r.id, "APPROVED")}
-                        className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md text-sm w-1/2"
+                        className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md text-xs font-medium transition"
                       >
-                        <CheckCircle size={14} /> Approve
+                        <CheckCircle size={13} /> Approve
                       </button>
                       <button
                         onClick={() => resolveReimbursement(r.id, "REJECTED")}
-                        className="flex items-center justify-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md text-sm w-1/2"
+                        className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-md text-xs font-medium transition"
                       >
-                        <XCircle size={14} /> Reject
+                        <XCircle size={13} /> Reject
                       </button>
-                    </div>
-                  ) : (
-                    <span className="text-gray-500 text-sm italic text-center">
-                      Resolved
-                    </span>
-                  )}
-                  <button
-                    onClick={() => fetchHistory(r.id)}
-                    className="text-blue-600 underline text-sm font-medium hover:text-blue-800 text-center"
-                  >
-                    View History
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
+                    </div>,
+                    <button
+                      key="view"
+                      onClick={() => fetchHistory(r.id)}
+                      className="text-blue-600 underline text-xs font-medium hover:text-blue-800 whitespace-nowrap"
+                    >
+                      View
+                    </button>,
+                  ])}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* 📜 Past History */}
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-gray-800">Approval History</h2>
+
+            {/* 🔹 Filter Controls */}
+            <div className="flex flex-wrap items-center gap-2">
+              <select value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))} className="border rounded-md px-2 py-1.5 text-sm bg-white">
+                {Array.from({ length: 12 }, (_, i) => (<option key={i + 1} value={i + 1}>{dayjs().month(i).format("MMM")}</option>))}
+              </select>
+              <select value={filterYear} onChange={(e) => setFilterYear(Number(e.target.value))} className="border rounded-md px-2 py-1.5 text-sm bg-white">
+                {Array.from({ length: 5 }, (_, i) => { const year = dayjs().year() - 2 + i; return <option key={year} value={year}>{year}</option>; })}
+              </select>
+              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="border rounded-md px-2 py-1.5 text-sm bg-white">
+                <option value="ALL">All Statuses</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 overflow-x-auto">
+            {(() => {
+              const filteredHistory = reimbursements
+                .filter(r => r.status !== "PENDING_FINANCE")
+                .filter(r => { const date = dayjs(r.createdAt); return date.month() + 1 === filterMonth && date.year() === filterYear; })
+                .filter(r => filterStatus === "ALL" || r.status === filterStatus);
+
+              return filteredHistory.length === 0 ? (
+                <p className="text-gray-600 text-sm">No history found for selected filters.</p>
+              ) : (
+                <Table
+                  headers={[
+                    "Employee",
+                    "Amount",
+                    "Description",
+                    "Status",
+                    "Notes",
+                    "History",
+                  ]}
+                  rows={filteredHistory.map((r) => [
+                    <span key="emp" className="font-medium text-gray-800 whitespace-nowrap">
+                      {r.employee?.name}
+                    </span>,
+                    <span key="amt" className="font-semibold text-gray-800 whitespace-nowrap">
+                      ₹{r.amount}
+                    </span>,
+                    <span key="desc" className="text-gray-600 break-words max-w-[200px]">
+                      {r.description || "-"}
+                    </span>,
+                    <StatusBadge key="status" status={getReadableStatus(r.status)} />,
+                    <span key="note" className="text-gray-500 text-sm italic">
+                      {r.resolvedBy ? `Resolved by ${r.resolvedBy.role}` : (r.actions?.[0]?.notes || "-")}
+                    </span>,
+                    <button
+                      key="view"
+                      onClick={() => fetchHistory(r.id)}
+                      className="text-blue-600 underline text-xs font-medium hover:text-blue-800 whitespace-nowrap"
+                    >
+                      View
+                    </button>,
+                  ])}
+                />
+              );
+            })()}
+          </div>
         </div>
 
         {/* History Drawer / Modal */}
@@ -277,7 +289,7 @@ export default function ReimbursementsPage() {
           </div>
         )}
 
-        
+
       </div>
     </div>
   );
