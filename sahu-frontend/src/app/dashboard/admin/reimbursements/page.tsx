@@ -130,6 +130,7 @@ export default function AdminReimbursementsPage() {
                                         "Amount",
                                         "Date",
                                         "Description",
+                                        "Receipt",
                                         "Status",
                                         "Notes",
                                         "Actions",
@@ -143,11 +144,16 @@ export default function AdminReimbursementsPage() {
                                             ₹{r.amount}
                                         </span>,
                                         <span key="date" className="text-gray-600 whitespace-nowrap" style={{ minWidth: '85px' }}>
-                                            {r.date ? dayjs(r.date).format("DD MMM YYYY") : "-"}
+                                            {r.createdAt ? dayjs(r.createdAt).format("DD MMM YYYY") : "-"}
                                         </span>,
                                         <span key="desc" className="text-gray-600 break-words max-w-[200px]">
                                             {r.description || "-"}
                                         </span>,
+                                        r.receiptUrl ? (
+                                            <a key="receipt" href={r.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs font-medium">📎 View</a>
+                                        ) : (
+                                            <span key="receipt" className="text-gray-400 text-xs">No file</span>
+                                        ),
                                         <StatusBadge key="status" status={getReadableStatus(r.status)} />,
                                         <input
                                             key="note"
@@ -203,6 +209,7 @@ export default function AdminReimbursementsPage() {
                                         "Amount",
                                         "Date",
                                         "Description",
+                                        "Receipt",
                                         "Status",
                                         "Notes",
                                         "Actions",
@@ -216,11 +223,16 @@ export default function AdminReimbursementsPage() {
                                             ₹{r.amount}
                                         </span>,
                                         <span key="date" className="text-gray-600 whitespace-nowrap" style={{ minWidth: '85px' }}>
-                                            {r.date ? dayjs(r.date).format("DD MMM YYYY") : "-"}
+                                            {r.createdAt ? dayjs(r.createdAt).format("DD MMM YYYY") : "-"}
                                         </span>,
                                         <span key="desc" className="text-gray-600 break-words max-w-[200px]">
                                             {r.description || "-"}
                                         </span>,
+                                        r.receiptUrl ? (
+                                            <a key="receipt" href={r.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs font-medium">📎 View</a>
+                                        ) : (
+                                            <span key="receipt" className="text-gray-400 text-xs">No file</span>
+                                        ),
                                         <StatusBadge key="status" status={getReadableStatus(r.status)} />,
                                         <input
                                             key="note"

@@ -96,6 +96,8 @@ export default function ManagerReimbursementsPage() {
                       <th className="p-4">ID</th>
                       <th className="p-4">Employee</th>
                       <th className="p-4">Amount</th>
+                      <th className="p-4">Description</th>
+                      <th className="p-4">Receipt</th>
                       <th className="p-4">Date</th>
                       <th className="p-4">Status</th>
                       <th className="p-4">Action</th>
@@ -109,7 +111,22 @@ export default function ManagerReimbursementsPage() {
                           <td className="p-4 font-medium text-gray-900">#{r.id}</td>
                           <td className="p-4">{r.employee?.name || "Unknown"}</td>
                           <td className="p-4 font-semibold text-gray-900">₹{r.amount}</td>
-                          <td className="p-4">{r.date ? dayjs(r.date).format("DD MMM YYYY") : "-"}</td>
+                          <td className="p-4 max-w-[200px] truncate" title={r.description}>{r.description || "-"}</td>
+                          <td className="p-4">
+                            {r.receiptUrl ? (
+                              <a
+                                href={r.receiptUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline text-xs font-medium"
+                              >
+                                📎 View
+                              </a>
+                            ) : (
+                              <span className="text-gray-400 text-xs">No file</span>
+                            )}
+                          </td>
+                          <td className="p-4">{r.createdAt ? dayjs(r.createdAt).format("DD MMM YYYY") : "-"}</td>
                           <td className="p-4">
                             <span className="inline-flex items-center bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
                               {r.status.replace("_", " ")}
@@ -165,6 +182,8 @@ export default function ManagerReimbursementsPage() {
                       <th className="p-4">ID</th>
                       <th className="p-4">Employee</th>
                       <th className="p-4">Amount</th>
+                      <th className="p-4">Description</th>
+                      <th className="p-4">Receipt</th>
                       <th className="p-4">Date</th>
                       <th className="p-4">Status</th>
                     </tr>
@@ -177,7 +196,22 @@ export default function ManagerReimbursementsPage() {
                           <td className="p-4 font-medium text-gray-900">#{r.id}</td>
                           <td className="p-4">{r.employee?.name || "Unknown"}</td>
                           <td className="p-4 font-semibold text-gray-900">₹{r.amount}</td>
-                          <td className="p-4">{r.date ? dayjs(r.date).format("DD MMM YYYY") : "-"}</td>
+                          <td className="p-4 max-w-[200px] truncate" title={r.description}>{r.description || "-"}</td>
+                          <td className="p-4">
+                            {r.receiptUrl ? (
+                              <a
+                                href={r.receiptUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline text-xs font-medium"
+                              >
+                                📎 View
+                              </a>
+                            ) : (
+                              <span className="text-gray-400 text-xs">No file</span>
+                            )}
+                          </td>
+                          <td className="p-4">{r.createdAt ? dayjs(r.createdAt).format("DD MMM YYYY") : "-"}</td>
                           <td className="p-4">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${r.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
                               r.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
