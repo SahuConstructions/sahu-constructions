@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { MapPin, Camera, Clock } from "lucide-react";
 import api from "@/lib/api";
 import { getUserFromToken } from "@/lib/auth";
+import { useToast } from "@/context/ToastContext";
 
 export default function AttendancePage() {
   const [records, setRecords] = useState<any[]>([]);
@@ -11,7 +12,7 @@ export default function AttendancePage() {
   const [deviceId, setDeviceId] = useState("");
   const [type, setType] = useState<"IN" | "OUT">("IN");
   const [selfie, setSelfie] = useState<File | null>(null);
-  const [message, setMessage] = useState("");
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
 
@@ -28,7 +29,7 @@ export default function AttendancePage() {
       const res = await api.get("/attendance/me");
       setRecords(res.data.records || []);
     } catch {
-      setMessage("❌ Failed to load attendance");
+      toast.error("Failed to load attendance");
     }
   };
 
@@ -47,7 +48,7 @@ export default function AttendancePage() {
         async (position) => {
           const lat = position.coords.latitude;
           const lon = position.coords.longitude;
-      
+
           try {
             // 🌍 Convert coordinates → readable address using OpenStreetMap (free)
             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
@@ -60,65 +61,46 @@ export default function AttendancePage() {
           }
         },
         (error) => console.error("Location error:", error),
-      );      
+      );
     }
   };
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-  
+
     if (!selfie) {
-      setMessage("⚠️ Please take a selfie before punching in/out");
+      toast.warning("Please take a selfie before punching in/out");
       return;
     }
-  
+
     const formData = new FormData();
     formData.append("type", type);
     formData.append("timestamp", new Date().toISOString());
     formData.append("location", location);
     formData.append("deviceId", deviceId);
-  
-    // 🧩 Compress selfie before upload (NEW)
-    const compressImage = async (file: File) => {
-      const bitmap = await createImageBitmap(file);
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d")!;
-      const maxWidth = 800; // target width for compression
-      const scale = maxWidth / bitmap.width;
-      canvas.width = maxWidth;
-      canvas.height = bitmap.height * scale;
-      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise<Blob>((resolve) =>
-        canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.7)
-      );
-      return new File([blob], file.name, { type: "image/jpeg" });
-    };
-  
-    const compressed = await compressImage(selfie);
-    formData.append("selfie", compressed);
-  
+    formData.append("selfie", selfie);
+
     setLoading(true);
-    setMessage("");
-  
+
     try {
       const res = await api.post("/attendance/punch", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-  
+
       if (res.data.ok) {
-        setMessage(`✅ ${type} punch recorded successfully`);
+        toast.success(`${type} punch recorded successfully`);
         fetchAttendance();
         setSelfie(null);
       } else {
-        setMessage("❌ Failed to record attendance");
+        toast.error("Failed to record attendance");
       }
     } catch (err) {
-      console.error("Upload error:", err);
-      setMessage("❌ Upload failed. Try again.");
+      console.error(err);
+      toast.error("Upload failed. Try again.");
     } finally {
       setLoading(false);
     }
-  };  
+  };
 
   return (
     <div className="space-y-6">
@@ -193,11 +175,10 @@ export default function AttendancePage() {
           <button
             type="submit"
             disabled={loading}
-            className={`px-4 py-2 rounded-lg text-white font-medium transition ${
-              loading
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-indigo-600 hover:bg-indigo-700"
-            }`}
+            className={`px-4 py-2 rounded-lg text-white font-medium transition ${loading
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-indigo-600 hover:bg-indigo-700"
+              }`}
           >
             {loading ? "Processing..." : `Mark ${type}`}
           </button>
@@ -205,74 +186,75 @@ export default function AttendancePage() {
       </form>
 
       {/* Message */}
-      {message && (
-        <p
-          className={`text-sm font-medium ${
-            message.startsWith("✅")
-              ? "text-green-600"
-              : message.startsWith("⚠️")
-              ? "text-yellow-600"
-              : "text-red-600"
-          }`}
-        >
-          {message}
-        </p>
-      )}
+
 
       {/* Attendance Records */}
-      <div className="bg-white border rounded-lg shadow-sm p-4">
-        <h2 className="font-semibold text-gray-800 mb-3">Recent Punches</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm border-collapse">
-            <thead className="bg-gray-100 text-gray-700">
-              <tr>
-                <th className="py-2 px-4 text-left">Type</th>
-                <th className="py-2 px-4 text-left">Time</th>
-                <th className="py-2 px-4 text-left">Location</th>
-                <th className="py-2 px-4 text-left">Selfie</th>
-              </tr>
-            </thead>
-            <tbody>
-              {records.length === 0 ? (
+      {/* Attendance History */}
+      <div className="bg-white border rounded-lg shadow-sm p-5">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">My Attendance History</h3>
+        {records.length === 0 ? (
+          <p className="text-gray-500 text-sm">No attendance records found</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm border-collapse">
+              <thead className="bg-gray-50">
                 <tr>
-                  <td
-                    colSpan={4}
-                    className="text-center py-4 text-gray-500 text-sm"
-                  >
-                    No attendance records yet
-                  </td>
+                  <th className="text-left p-3 font-medium text-gray-700">Date</th>
+                  <th className="text-left p-3 font-medium text-gray-700">Punch In</th>
+                  <th className="text-left p-3 font-medium text-gray-700">Punch Out</th>
+                  <th className="text-left p-3 font-medium text-gray-700">Hours</th>
                 </tr>
-              ) : (
-                records.map((r, i) => (
-                  <tr
-                    key={i}
-                    className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
-                  >
-                    <td className="py-2 px-4 font-medium">{r.type}</td>
-                    <td className="py-2 px-4">
-                      {new Date(r.timestamp).toLocaleString()}
+              </thead>
+              <tbody>
+                {records.map((rec: any, idx: number) => (
+                  <tr key={idx} className="border-b hover:bg-gray-50">
+                    <td className="p-3 align-top">{rec.date}</td>
+
+                    {/* Punch In Column */}
+                    <td className="p-3 align-top">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium text-gray-900">
+                          {rec.inTime ? new Date(rec.inTime).toLocaleTimeString() : "-"}
+                        </span>
+                        {rec.inLocation && (
+                          <span className="text-xs text-gray-500 max-w-[200px] truncate" title={rec.inLocation}>
+                            📍 {rec.inLocation}
+                          </span>
+                        )}
+                        {rec.inSelfie && (
+                          <a href={rec.inSelfie} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+                            📷 View Selfie
+                          </a>
+                        )}
+                      </div>
                     </td>
-                    <td className="py-2 px-4">{r.location}</td>
-                    <td className="py-2 px-4">
-                      {r.selfieUrl ? (
-                        <a
-                          href={r.selfieUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-indigo-600 underline"
-                        >
-                          View
-                        </a>
-                      ) : (
-                        "-"
-                      )}
+
+                    {/* Punch Out Column */}
+                    <td className="p-3 align-top">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium text-gray-900">
+                          {rec.outTime ? new Date(rec.outTime).toLocaleTimeString() : "Working..."}
+                        </span>
+                        {rec.outLocation && rec.outLocation !== '-' && (
+                          <span className="text-xs text-gray-500 max-w-[200px] truncate" title={rec.outLocation}>
+                            📍 {rec.outLocation}
+                          </span>
+                        )}
+                        {rec.outSelfie && (
+                          <a href={rec.outSelfie} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+                            📷 View Selfie
+                          </a>
+                        )}
+                      </div>
                     </td>
+
+                    <td className="p-3 align-top font-medium text-gray-700">{rec.hours ?? "-"}</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

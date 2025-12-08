@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getUserFromToken } from "@lib/auth";
 import api from "@lib/api";
 import { Users, BarChart2, Eye, AlertTriangle, FileDown, RefreshCcw } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 import dayjs from "dayjs";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -13,7 +14,7 @@ export default function ManagerTeamPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [team, setTeam] = useState<any[]>([]);
-  const [message, setMessage] = useState("");
+  const toast = useToast();
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [attendanceDetails, setAttendanceDetails] = useState<any[]>([]);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -41,7 +42,7 @@ export default function ManagerTeamPage() {
       setTeam(res.data || []);
     } catch (err) {
       console.error(err);
-      setMessage("❌ Failed to load team data");
+      toast.error(" Failed to load team data");
     } finally {
       setLoading(false);
     }
@@ -72,7 +73,7 @@ export default function ManagerTeamPage() {
       setAttendanceDetails(res.data || []);
     } catch (err) {
       console.error(err);
-      setMessage("❌ Failed to load employee details");
+      toast.error(" Failed to load employee details");
     }
   };
 
@@ -242,15 +243,7 @@ export default function ManagerTeamPage() {
         />
       )}
 
-      {message && (
-        <p
-          className={`text-center text-sm font-medium ${
-            message.includes("✅") ? "text-green-600" : "text-red-600"
-          }`}
-        >
-          {message}
-        </p>
-      )}
+      
     </div>
   );
 }

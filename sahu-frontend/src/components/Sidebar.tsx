@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   HomeIcon,
   CalendarDays,
@@ -14,15 +13,28 @@ import {
   Settings,
   Menu,
   UserPlus,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
-import { getUserFromToken, clearToken } from "@/lib/auth";
+import { getUserFromToken } from "@/lib/auth";
+
+interface NavItem {
+  id: string;
+  label: string;
+  path?: string;
+  icon?: React.ReactNode;
+  children?: NavItem[];
+}
 
 interface SidebarProps {
   isOpen: boolean;
   toggle: () => void;
+  isCollapsed?: boolean;
+  toggleCollapse?: () => void;
 }
 
-export default function Sidebar({ isOpen, toggle }: SidebarProps) {
+export default function Sidebar({ isOpen, toggle, isCollapsed = false, toggleCollapse }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [active, setActive] = useState<string>("");
@@ -35,8 +47,6 @@ export default function Sidebar({ isOpen, toggle }: SidebarProps) {
     if (user?.role) {
       const roleName = user.role.toLowerCase();
       setRole(roleName);
-
-      // base route depending on role
       if (["hr", "manager", "admin", "finance", "super admin"].includes(roleName)) {
         setBasePath(`/dashboard/${roleName.replace(" ", "")}`);
       }
@@ -46,7 +56,7 @@ export default function Sidebar({ isOpen, toggle }: SidebarProps) {
   // Active section based on pathname
   useEffect(() => {
     const lastSegment = pathname.split("/").pop();
-    if (!lastSegment || lastSegment === "employee" || lastSegment === "hr" || lastSegment === "manager" || lastSegment === "admin" || lastSegment === "finance" || lastSegment === "superadmin") {
+    if (!lastSegment || ["employee", "hr", "manager", "admin", "finance", "superadmin"].includes(lastSegment)) {
       setActive("overview");
     } else {
       setActive(lastSegment);
@@ -54,7 +64,7 @@ export default function Sidebar({ isOpen, toggle }: SidebarProps) {
   }, [pathname]);
 
   // Role-specific nav items
-  const EMPLOYEE_ITEMS = [
+  const EMPLOYEE_ITEMS: NavItem[] = [
     { id: "overview", label: "Overview", icon: <HomeIcon size={18} /> },
     { id: "leaves", label: "My Leaves", icon: <CalendarDays size={18} /> },
     { id: "attendance", label: "Attendance", icon: <Clock size={18} /> },
@@ -63,113 +73,226 @@ export default function Sidebar({ isOpen, toggle }: SidebarProps) {
     { id: "reimbursements", label: "Reimbursements", icon: <Receipt size={18} /> },
   ];
 
-  const ADMIN_ITEMS = [
+  const ADMIN_ITEMS: NavItem[] = [
     { id: "overview", label: "Overview", icon: <HomeIcon size={18} /> },
     { id: "employees", label: "Employees", icon: <Users size={18} /> },
+    { id: "add-employee", label: "Add Employee", path: "/dashboard/admin/add-employee", icon: <UserPlus size={18} /> },
+    { id: "attendance", label: "Attendance", path: "/dashboard/admin/attendance", icon: <Clock size={18} /> },
     { id: "leaves", label: "Leaves", icon: <CalendarDays size={18} /> },
     { id: "timesheets", label: "Timesheets", icon: <FileText size={18} /> },
+    { id: "reimbursements", label: "Reimbursements", path: "/dashboard/admin/reimbursements", icon: <Receipt size={18} /> },
+    { id: "workforce-summary", label: "Workforce Summary", path: "/dashboard/admin/workforce-summary", icon: <FileText size={18} /> },
     { id: "payroll", label: "Payroll", icon: <Wallet size={18} /> },
     { id: "settings", label: "Settings", icon: <Settings size={18} /> },
   ];
 
-  const HR_ITEMS = [
+  const HR_ITEMS: NavItem[] = [
     { id: "overview", label: "Overview", path: "/dashboard/hr", icon: <HomeIcon size={18} /> },
     { id: "attendance", label: "Attendance", path: "/dashboard/hr/attendance", icon: <Clock size={18} /> },
-    { id: "employees", label: "Employees", path: "/dashboard/hr/employees", icon: <Users size={18} />  },
-    { id: "leaves", label: "Leaves", path: "/dashboard/hr/leaves", icon: <CalendarDays size={18} />  },
-    { id: "timesheets", label: "Timesheets", path: "/dashboard/hr/timesheets", icon: <FileText size={18} />  },
-    { id: "add-employee", label: "Add Employee", path: "/dashboard/hr/add-employee", icon: <UserPlus size={18} />  },
+    { id: "employees", label: "Employees", path: "/dashboard/hr/employees", icon: <Users size={18} /> },
+    { id: "leaves", label: "Leaves", path: "/dashboard/hr/leaves", icon: <CalendarDays size={18} /> },
+    { id: "timesheets", label: "Timesheets", path: "/dashboard/hr/timesheets", icon: <FileText size={18} /> },
+    { id: "add-employee", label: "Add Employee", path: "/dashboard/hr/add-employee", icon: <UserPlus size={18} /> },
     { id: "workforce-summary", label: "Workforce Summary", path: "/dashboard/hr/workforce-summary", icon: <FileText size={18} /> },
-    { id: "payroll", label: "Payroll", path: "/dashboard/finance/payroll", icon: <Wallet size={18} /> },
-    { id: "reimbursements", label: "Reimbursements", path: "/dashboard/finance/reimbursements", icon: <Receipt size={18} /> },
-  ]
-  ;
-
-  const MANAGER_ITEMS = [
-    { id: "overview", label: "Overview", path: "/dashboard/manager", icon: <HomeIcon size={18} /> },
-    { id: "attendance", label: "Attendance", path: "/dashboard/manager/attendance", icon: <Clock size={18} /> },
-    { id: "leaves", label: "Leaves", path: "/dashboard/manager/leaves", icon: <CalendarDays size={18} /> },
-    { id: "timesheets", label: "Timesheets", path: "/dashboard/manager/timesheets", icon: <FileText size={18} /> },
-    { id: "team", label: "Workforce Summary", path: "/dashboard/manager/team", icon: <FileText size={18} /> },
-    { id: "reimbursements", label: "Reimbursements", path: "/dashboard/finance/reimbursements", icon: <Receipt size={18} /> },
+    { id: "payroll", label: "Payroll", path: "/dashboard/hr/payroll", icon: <Wallet size={18} /> },
+    { id: "reimbursements", label: "Reimbursements", path: "/dashboard/hr/reimbursements", icon: <Receipt size={18} /> },
   ];
 
-  // 🔹 ✅ Finance Nav
-  const FINANCE_ITEMS = [
+  const MANAGER_ITEMS: NavItem[] = [
+    { id: "overview", label: "Overview", path: "/dashboard/manager", icon: <HomeIcon size={18} /> },
+    {
+      id: "attendance-group",
+      label: "Attendance",
+      icon: <Clock size={18} />,
+      children: [
+        { id: "attendance", label: "Employee Attendance", path: "/dashboard/manager/attendance" },
+        { id: "my-attendance", label: "My Attendance", path: "/dashboard/manager/my-attendance" },
+      ],
+    },
+    {
+      id: "leaves-group",
+      label: "Leaves",
+      icon: <CalendarDays size={18} />,
+      children: [
+        { id: "leaves", label: "Employee Leaves", path: "/dashboard/manager/leaves" },
+        { id: "my-leaves", label: "My Leaves", path: "/dashboard/manager/my-leaves" },
+      ],
+    },
+    {
+      id: "timesheets-group",
+      label: "Timesheets",
+      icon: <FileText size={18} />,
+      children: [
+        { id: "timesheets", label: "Employee Timesheets", path: "/dashboard/manager/timesheets" },
+        { id: "my-timesheets", label: "My Timesheets", path: "/dashboard/manager/my-timesheets" },
+      ],
+    },
+    { id: "team", label: "Workforce Summary", path: "/dashboard/manager/team", icon: <Users size={18} /> },
+    {
+      id: "reimbursements-group",
+      label: "Reimbursements",
+      icon: <Receipt size={18} />,
+      children: [
+        { id: "reimbursements", label: "Employee Reimbursements", path: "/dashboard/manager/reimbursements" },
+        { id: "my-reimbursements", label: "My Reimbursements", path: "/dashboard/manager/my-reimbursements" },
+      ],
+    },
+  ];
+
+  const FINANCE_ITEMS: NavItem[] = [
     { id: "overview", label: "Overview", path: "/dashboard/finance", icon: <HomeIcon size={18} /> },
     { id: "reimbursements", label: "Reimbursements", path: "/dashboard/finance/reimbursements", icon: <Receipt size={18} /> },
   ];
-  // Choose correct nav items based on role
-  const NAV_ITEMS =
+
+  const NAV_ITEMS: NavItem[] =
     role === "admin"
       ? ADMIN_ITEMS
       : role === "manager"
-      ? MANAGER_ITEMS
-      : role === "hr"
-      ? HR_ITEMS
-      : role === "finance"
-      ? FINANCE_ITEMS
-      : EMPLOYEE_ITEMS;
+        ? MANAGER_ITEMS
+        : role === "hr"
+          ? HR_ITEMS
+          : role === "finance"
+            ? FINANCE_ITEMS
+            : EMPLOYEE_ITEMS;
 
-      const handleNavigate = (id: string) => {
-        if (id === "overview") router.push(basePath);
-        else router.push(`${basePath}/${id}`);
-        if (window.innerWidth < 768) toggle();
-      };
-      
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
+
+  const toggleMenu = (id: string) => {
+    setExpandedMenus((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleNavigate = (item: NavItem) => {
+    if (item.children) {
+      toggleMenu(item.id);
+      return;
+    }
+
+    if (item.path) {
+      router.push(item.path);
+    } else {
+      if (item.id === "overview") router.push(basePath);
+      else router.push(`${basePath}/${item.id}`);
+    }
+
+    if (window.innerWidth < 768) toggle();
+  };
+
+  // Sidebar width classes
+  const sidebarWidth = isCollapsed ? "w-20" : "w-64";
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.aside
-          initial={{ x: -220 }}
-          animate={{ x: 0 }}
-          exit={{ x: -220 }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="fixed md:static top-0 left-0 z-30 h-full w-64 bg-gradient-to-b from-slate-800 to-slate-900 shadow-xl flex flex-col text-white"
+    <aside
+      className={`
+        h-full bg-gradient-to-b from-slate-800 to-slate-900 shadow-xl flex flex-col text-white
+        transition-all duration-300 ease-in-out overflow-hidden
+        ${sidebarWidth}
+      `}
+    >
+      {/* Header */}
+      <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-4 py-4 border-b border-slate-700 bg-slate-800/80 backdrop-blur-sm min-h-[60px]`}>
+        {/* Logo/Title */}
+        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+          <h1 className="text-lg font-bold tracking-wide text-white whitespace-nowrap">
+            SAHU ERP
+          </h1>
+        </div>
+
+        {/* Desktop Collapse Toggle */}
+        {toggleCollapse && (
+          <button
+            onClick={toggleCollapse}
+            className="hidden md:flex items-center justify-center text-gray-400 hover:text-white hover:bg-slate-700 transition-all duration-200 p-2 rounded-full"
+            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
+        )}
+
+        {/* Mobile Close Button */}
+        <button
+          onClick={toggle}
+          className="md:hidden text-gray-400 hover:text-white transition"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700 bg-slate-800/80 backdrop-blur-sm">
-            <h1 className="text-lg font-bold tracking-wide">SAHU ERP</h1>
-            <button
-              onClick={toggle}
-              className="md:hidden hover:text-gray-300 transition"
-            >
-              <Menu size={22} />
-            </button>
-          </div>
+          <Menu size={22} />
+        </button>
+      </div>
 
-          {/* Navigation */}
-          <nav className="space-y-1 flex-1 overflow-y-auto p-4 divide-y divide-slate-700">
-            {NAV_ITEMS.map((n) => (
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-1 custom-scrollbar">
+        {NAV_ITEMS.map((item) => {
+          const isChildActive = item.children && item.children.some(c => active === c.id);
+          const isActive = active === item.id;
+          const isExpanded = expandedMenus[item.id];
+
+          return (
+            <div key={item.id} className="mb-1">
               <button
-                key={n.id}
-                onClick={() => handleNavigate(n.id)}
-                className={`flex items-center gap-3 px-3 py-2 w-full rounded-lg text-left transition-all ${
-                  active === n.id
-  ? "bg-white text-slate-900 font-semibold shadow-sm border-l-4 border-blue-500"
-  : "text-gray-300 hover:bg-slate-700/40 hover:text-white"
-
-                }`}
+                onClick={() => handleNavigate(item)}
+                title={isCollapsed ? item.label : ""}
+                className={`
+                  flex items-center w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group
+                  ${isCollapsed ? 'justify-center' : 'justify-between'}
+                  ${isActive && !item.children
+                    ? "bg-white text-slate-900 font-semibold shadow-sm border-l-4 border-blue-500"
+                    : "text-gray-300 hover:bg-slate-700/40 hover:text-white"
+                  }
+                  ${isChildActive ? "text-white font-semibold" : ""}
+                `}
               >
-                <div
-                  className={`p-2 rounded-md ${
-                    active === n.id ? "bg-slate-200 text-slate-900" : ""
-                  }`}
-                >
-                  {n.icon}
+                <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+                  <div className={`flex-shrink-0 p-1 rounded-md transition-colors duration-200 ${isActive && !item.children ? "bg-slate-200 text-slate-900" : ""}`}>
+                    {item.icon}
+                  </div>
+                  {/* Label with smooth fade */}
+                  <span className={`whitespace-nowrap transition-all duration-300 ease-in-out ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>
+                    {item.label}
+                  </span>
                 </div>
-                <span className="text-sm tracking-wide">{n.label}</span>
-              </button>
-            ))}
-          </nav>
 
-          {/* Footer */}
-          <div className="mt-auto px-4 py-3 border-t border-slate-700 text-xs text-gray-400 bg-slate-900/70">
-            © 2025 Sahu Construction
-          </div>
-        </motion.aside>
-      )}
-    </AnimatePresence>
+                {/* Arrow for children */}
+                {item.children && !isCollapsed && (
+                  <span className="text-gray-400 transition-transform duration-200">
+                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </span>
+                )}
+              </button>
+
+              {/* Submenu */}
+              {item.children && isExpanded && !isCollapsed && (
+                <div className="mt-1 ml-4 border-l border-slate-700 pl-2 space-y-1 animate-fadeIn">
+                  {item.children.map((child) => {
+                    const isChildSelected = active === child.id;
+                    return (
+                      <button
+                        key={child.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNavigate(child);
+                        }}
+                        className={`
+                          flex items-center gap-2 px-3 py-2 w-full rounded-md text-sm transition-all duration-200
+                          ${isChildSelected
+                            ? "bg-white text-slate-900 font-semibold shadow-sm border-l-4 border-blue-500"
+                            : "text-gray-400 hover:text-white hover:bg-slate-800/50"
+                          }
+                        `}
+                      >
+                        {!isChildSelected && <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60"></span>}
+                        {child.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div className={`mt-auto px-4 py-4 border-t border-slate-800 text-xs text-gray-500 bg-slate-900 transition-all duration-300 ease-in-out overflow-hidden ${isCollapsed ? 'opacity-0 h-0 py-0' : 'opacity-100'}`}>
+        <p className="whitespace-nowrap">© 2025 Sahu Construction</p>
+      </div>
+    </aside>
   );
 }

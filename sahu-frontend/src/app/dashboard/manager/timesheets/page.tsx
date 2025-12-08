@@ -13,13 +13,14 @@ import {
   User,
   RefreshCcw,
 } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 import dayjs from "dayjs";
 
 export default function ManagerTimesheetsPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [timesheets, setTimesheets] = useState<any[]>([]);
-  const [message, setMessage] = useState("");
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,12 +37,10 @@ export default function ManagerTimesheetsPage() {
     try {
       setLoading(true);
       const res = await api.get("/timesheets");
-      // Filter only PendingManager for manager view
-      const filtered = res.data.filter((t: any) => t.status === "PendingManager");
-      setTimesheets(filtered);
+      setTimesheets(res.data || []);
     } catch (err) {
       console.error(err);
-      setMessage("❌ Failed to fetch timesheets");
+      toast.error(" Failed to fetch timesheets");
     } finally {
       setLoading(false);
     }
@@ -50,11 +49,11 @@ export default function ManagerTimesheetsPage() {
   const takeAction = async (id: number, action: "approve" | "reject") => {
     try {
       await api.post(`/timesheets/${id}/action`, { action });
-      setMessage(`✅ Timesheet ${id} ${action}d successfully`);
+      toast.success(` Timesheet ${id} ${action}d successfully`);
       fetchTimesheets();
     } catch (err) {
       console.error(err);
-      setMessage(`❌ Failed to ${action} timesheet ${id}`);
+      toast.error(` Failed to ${action} timesheet ${id}`);
     }
   };
 
@@ -75,10 +74,10 @@ export default function ManagerTimesheetsPage() {
           <button
             onClick={fetchTimesheets}
             className="flex items-center gap-2 bg-gradient-to-b from-slate-800 to-blue-800 text-white px-4 py-2 rounded-md text-sm font-medium transition"
-        >
-          <RefreshCcw size={16} />
-          Refresh
-        </button>
+          >
+            <RefreshCcw size={16} />
+            Refresh
+          </button>
         </div>
       </div>
 
@@ -86,7 +85,7 @@ export default function ManagerTimesheetsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard
           label="Pending Reviews"
-          value={timesheets.length}
+          value={timesheets.filter(t => t.status === "PendingManager").length}
           sub="Awaiting Manager Action"
           color="bg-gradient-to-b from-slate-800 to-blue-800"
         />
@@ -110,63 +109,82 @@ export default function ManagerTimesheetsPage() {
         />
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        {loading ? (
-          <p className="text-gray-500">Loading timesheets...</p>
-        ) : timesheets.length === 0 ? (
-          <p className="text-gray-600 text-sm">No pending timesheets found.</p>
-        ) : (
-          <Table
-            headers={[
-              "ID",
-              "Employee",
-              "Project",
-              "Task",
-              "Date",
-              "Hours",
-              "Status",
-              "Action",
-            ]}
-            rows={timesheets.map((t) => [
-              t.id,
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-gray-600" />
-                {t.employee?.name || "-"}
-              </div>,
-              t.project,
-              t.task,
-              dayjs(t.date).format("DD MMM YYYY"),
-              t.hours,
-              <StatusBadge status={t.status} />,
-              <div className="flex gap-2">
-                <button
-                  onClick={() => takeAction(t.id, "approve")}
-                  className="flex items-center gap-1 bg-green-800 hover:bg-green-700 text-white px-3 py-1 rounded-md text-xs font-semibold transition"
-                >
-                  <CheckCircle size={14} /> Approve
-                </button>
-                <button
-                  onClick={() => takeAction(t.id, "reject")}
-                  className="flex items-center gap-1 bg-red-700 hover:bg-red-600 text-white px-3 py-1 rounded-md text-xs font-semibold transition"
-                >
-                  <XCircle size={14} /> Reject
-                </button>
-              </div>,
-            ])}
-          />
-        )}
+      {/* 🕒 Pending Timesheets */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          Pending Approvals
+          <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded-full">
+            {timesheets.filter((t) => t.status === "PendingManager").length}
+          </span>
+        </h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          {timesheets.filter((t) => t.status === "PendingManager").length === 0 ? (
+            <p className="text-gray-600 text-sm">No pending timesheets found.</p>
+          ) : (
+            <Table
+              headers={["ID", "Employee", "Project", "Task", "Date", "Hours", "Status", "Action"]}
+              rows={timesheets
+                .filter((t) => t.status === "PendingManager")
+                .map((t) => [
+                  t.id,
+                  <div key={t.id + 'user'} className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-gray-600" />
+                    {t.employee?.name || "-"}
+                  </div>,
+                  t.project,
+                  t.task,
+                  dayjs(t.date).format("DD MMM YYYY"),
+                  t.hours,
+                  <StatusBadge key={t.id + 'badge'} status={t.status} />,
+                  <div key={t.id + 'actions'} className="flex gap-2">
+                    <button
+                      onClick={() => takeAction(t.id, "approve")}
+                      className="flex items-center gap-1 bg-green-800 hover:bg-green-700 text-white px-3 py-1 rounded-md text-xs font-semibold transition"
+                    >
+                      <CheckCircle size={14} /> Approve
+                    </button>
+                    <button
+                      onClick={() => takeAction(t.id, "reject")}
+                      className="flex items-center gap-1 bg-red-700 hover:bg-red-600 text-white px-3 py-1 rounded-md text-xs font-semibold transition"
+                    >
+                      <XCircle size={14} /> Reject
+                    </button>
+                  </div>,
+                ])}
+            />
+          )}
+        </div>
       </div>
 
-      {message && (
-        <p
-          className={`text-center text-sm font-medium ${
-            message.includes("✅") ? "text-green-600" : "text-red-600"
-          }`}
-        >
-          {message}
-        </p>
-      )}
+      {/* 📜 Timesheet History */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          Timesheet History
+        </h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          {timesheets.filter((t) => t.status !== "PendingManager").length === 0 ? (
+            <p className="text-gray-600 text-sm">No history found.</p>
+          ) : (
+            <Table
+              headers={["ID", "Employee", "Project", "Task", "Date", "Hours", "Status"]}
+              rows={timesheets
+                .filter((t) => t.status !== "PendingManager")
+                .map((t) => [
+                  t.id,
+                  <div key={t.id + 'user_hist'} className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-gray-600" />
+                    {t.employee?.name || "-"}
+                  </div>,
+                  t.project,
+                  t.task,
+                  dayjs(t.date).format("DD MMM YYYY"),
+                  t.hours,
+                  <StatusBadge key={t.id + 'badge_hist'} status={t.status} />,
+                ])}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -216,9 +234,8 @@ function Table({
           {rows.map((r, i) => (
             <tr
               key={i}
-              className={`${
-                i % 2 === 0 ? "bg-white" : "bg-gray-50/60"
-              } hover:bg-blue-50/40 transition-all`}
+              className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50/60"
+                } hover:bg-blue-50/40 transition-all`}
             >
               {r.map((c, j) => (
                 <td key={j} className="py-3 px-4 align-top text-gray-700">

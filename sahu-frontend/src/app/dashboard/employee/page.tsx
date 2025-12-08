@@ -11,6 +11,10 @@ import {
   Receipt,
   CalendarArrowDown,
 } from "lucide-react";
+import dayjs from "dayjs";
+import DonutChart from "@/components/charts/DonutChart";
+import AreaChartWidget from "@/components/charts/AreaChartWidget";
+import RadialBarChart from "@/components/charts/RadialBarChart";
 
 export default function EmployeeOverview() {
   const router = useRouter();
@@ -20,6 +24,8 @@ export default function EmployeeOverview() {
   const [payslips, setPayslips] = useState<any[]>([]);
   const [reimbursements, setReimbursements] = useState<any[]>([]);
   const [leaves, setLeaves] = useState<any[]>([]);
+  const [weeklyHours, setWeeklyHours] = useState<any[]>([]);
+  const [attendanceRate, setAttendanceRate] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,6 +53,19 @@ export default function EmployeeOverview() {
       setPayslips(pay.data ?? []);
       setReimbursements(reimb.data ?? []);
       setLeaves(leave.data ?? []);
+
+      // Calculate attendance rate
+      const today = dayjs();
+      const thirtyDaysAgo = today.subtract(30, "day");
+      const recentAttendance = (att.data.records ?? att.data ?? []).filter((a: any) =>
+        dayjs(a.date).isAfter(thirtyDaysAgo)
+      );
+      const rate = recentAttendance.length > 0 ? Math.round((recentAttendance.length / 30) * 100) : 0;
+      setAttendanceRate(Math.min(rate, 100));
+
+      // Weekly hours trend
+      const weekData = generateWeeklyHours(time.data ?? []);
+      setWeeklyHours(weekData);
     } catch (err) {
       console.error("❌ Error fetching overview data:", err);
     } finally {
@@ -131,9 +150,78 @@ export default function EmployeeOverview() {
             onClick={() => goTo("leaves")}
           />
         </div>
+
+        {/* Enhanced Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+          {/* Personal Attendance Rate */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex items-center justify-center">
+            <DonutChart
+              percentage={attendanceRate}
+              label="Attendance Rate"
+              subtitle="Last 30 Days"
+              color="#10b981"
+            />
+          </div>
+
+          {/* Leave Balance */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex items-center justify-center">
+            <RadialBarChart
+              value={summary.totalLeaves}
+              maxValue={20}
+              label="Leave Applications"
+              subtitle="This Year"
+              color="#f59e0b"
+            />
+          </div>
+
+          {/* Timesheet Activity */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex items-center justify-center">
+            <RadialBarChart
+              value={summary.totalTimesheets}
+              maxValue={100}
+              label="Project Logs"
+              subtitle="Total Recorded"
+              color="#3b82f6"
+            />
+          </div>
+        </div>
+
+        {/* Weekly Hours Trend */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mt-6">
+          <AreaChartWidget
+            data={weeklyHours}
+            xKey="day"
+            yKeys={["hours"]}
+            title="Weekly Hours Logged"
+            colors={["#10b981"]}
+            height={250}
+          />
+        </div>
       </div>
     </div>
   );
+}
+
+function generateWeeklyHours(timesheets: any[]) {
+  const today = dayjs();
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const day = today.subtract(6 - i, "day");
+    return {
+      day: day.format("ddd"),
+      date: day.format("YYYY-MM-DD"),
+      hours: 0,
+    };
+  });
+
+  timesheets.forEach((t: any) => {
+    const tDate = dayjs(t.date).format("YYYY-MM-DD");
+    const dayEntry = weekDays.find((d) => d.date === tDate);
+    if (dayEntry) {
+      dayEntry.hours += t.hours || 0;
+    }
+  });
+
+  return weekDays;
 }
 
 function SummaryCard({ label, value, sub, color, icon, onClick }: any) {

@@ -28,6 +28,9 @@ import {
   PieChart as RePieChart,
   Cell,
 } from "recharts";
+import DonutChart from "@/components/charts/DonutChart";
+import AreaChartWidget from "@/components/charts/AreaChartWidget";
+import RadialBarChart from "@/components/charts/RadialBarChart";
 
 export default function HrOverview() {
   const router = useRouter();
@@ -47,6 +50,8 @@ export default function HrOverview() {
   const [recentTimesheets, setRecentTimesheets] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [leaveChart, setLeaveChart] = useState<any[]>([]);
+  const [weeklyTrend, setWeeklyTrend] = useState<any[]>([]);
+  const [attendanceRate, setAttendanceRate] = useState(0);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -79,10 +84,10 @@ export default function HrOverview() {
       });
 
       const [payrollRes, reimburseRes] = await Promise.all([
-              api.get("/payroll"),
-              api.get("/reimbursements"),
-            ]);
-            const reimbursements = reimburseRes.data || [];
+        api.get("/payroll"),
+        api.get("/reimbursements"),
+      ]);
+      const reimbursements = reimburseRes.data || [];
 
       setStats({
         employees: emp.data?.length || 0,
@@ -113,6 +118,19 @@ export default function HrOverview() {
           value: count,
         }))
       );
+
+      // Calculate attendance rate (employees with timesheets / total employees)
+      const employeesWithTimesheets = new Set(
+        filteredTimesheets.map((t: any) => t.employee?.id)
+      ).size;
+      const rate = emp.data.length > 0
+        ? Math.round((employeesWithTimesheets / emp.data.length) * 100)
+        : 0;
+      setAttendanceRate(rate);
+
+      // Weekly trend data for area chart
+      const weeklyData = generateWeeklyTrend(filteredTimesheets);
+      setWeeklyTrend(weeklyData);
     } catch (err) {
       console.error("Failed to fetch HR overview data", err);
     } finally {
@@ -252,6 +270,53 @@ export default function HrOverview() {
         ))}
       </div>
 
+      {/* New Enhanced Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Attendance Rate Donut */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex items-center justify-center">
+          <DonutChart
+            percentage={attendanceRate}
+            label="Attendance Rate"
+            subtitle="Employees Active"
+            color="#10b981"
+          />
+        </div>
+
+        {/* Leave Utilization Radial */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex items-center justify-center">
+          <RadialBarChart
+            value={stats.leaves}
+            maxValue={stats.employees}
+            label="Leave Requests"
+            subtitle="This Month"
+            color="#f59e0b"
+          />
+        </div>
+
+        {/* Timesheet Completion Radial */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex items-center justify-center">
+          <RadialBarChart
+            value={stats.timesheets}
+            maxValue={stats.employees * 20}
+            label="Timesheet Logs"
+            subtitle="Expected vs Actual"
+            color="#3b82f6"
+          />
+        </div>
+      </div>
+
+      {/* Weekly Trend Area Chart */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+        <AreaChartWidget
+          data={weeklyTrend}
+          xKey="day"
+          yKeys={["hours"]}
+          title="Weekly Timesheet Trends"
+          colors={["#3b82f6"]}
+          height={250}
+        />
+      </div>
+
       {/* Analytics Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
         <OverviewCard
@@ -380,6 +445,28 @@ function countBy(arr: any[], key: string) {
     acc[val] = (acc[val] || 0) + 1;
     return acc;
   }, {});
+}
+
+function generateWeeklyTrend(timesheets: any[]) {
+  const today = dayjs();
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const day = today.subtract(6 - i, "day");
+    return {
+      day: day.format("ddd"),
+      date: day.format("YYYY-MM-DD"),
+      hours: 0,
+    };
+  });
+
+  timesheets.forEach((t: any) => {
+    const tDate = dayjs(t.date).format("YYYY-MM-DD");
+    const dayEntry = weekDays.find((d) => d.date === tDate);
+    if (dayEntry) {
+      dayEntry.hours += t.hours || 0;
+    }
+  });
+
+  return weekDays;
 }
 
 /* Components */

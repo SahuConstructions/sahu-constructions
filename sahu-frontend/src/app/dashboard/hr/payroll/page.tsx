@@ -13,6 +13,7 @@ import {
   CheckCircle,
   Filter,
 } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 
 export default function PayrollPage() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function PayrollPage() {
   const [filteredPayrolls, setFilteredPayrolls] = useState<any[]>([]);
   const [selectedPayroll, setSelectedPayroll] = useState<any | null>(null);
   const [items, setItems] = useState<any[]>([]);
-  const [message, setMessage] = useState("");
+  const toast = useToast();
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
@@ -49,7 +50,7 @@ export default function PayrollPage() {
     if (!u || u.role !== "HR") {
       router.push("/");
       return;
-    }    
+    }
     setUser(u);
     fetchPayrolls();
   }, []);
@@ -60,7 +61,7 @@ export default function PayrollPage() {
       setPayrolls(res.data);
       setFilteredPayrolls(res.data);
     } catch {
-      setMessage("❌ Failed to fetch payrolls");
+      toast.error("Failed to fetch payrolls");
     }
   };
 
@@ -89,7 +90,7 @@ export default function PayrollPage() {
       setSelectedPayroll(res.data);
       setItems(res.data.items || []);
     } catch {
-      setMessage("❌ Failed to fetch payroll items");
+      toast.error("Failed to fetch payroll items");
     }
   };
 
@@ -98,10 +99,10 @@ export default function PayrollPage() {
     const year = new Date().getFullYear();
     try {
       await api.post("/payroll", { month, year });
-      setMessage("✅ Payroll run created");
+      toast.success("Payroll run created");
       fetchPayrolls();
     } catch {
-      setMessage("❌ Failed to create payroll run");
+      toast.error("Failed to create payroll run");
     }
   };
 
@@ -109,11 +110,11 @@ export default function PayrollPage() {
     setLoadingAction(action);
     try {
       await api.post(`/payroll/${id}/${action}`);
-      setMessage(`✅ Payroll ${action}d`);
+      toast.success(`Payroll ${action}d`);
       fetchPayrolls();
       fetchItems(id);
     } catch {
-      setMessage(`❌ Failed to ${action} payroll`);
+      toast.error(`Failed to ${action} payroll`);
     } finally {
       setTimeout(() => setLoadingAction(null), 1000);
     }
@@ -151,10 +152,10 @@ export default function PayrollPage() {
       setItems((prev) =>
         prev.map((i) => (i.id === editingItem.id ? { ...res.data } : i))
       );
-      setMessage("✅ Salary updated successfully");
+      toast.success("Salary updated successfully");
       setEditingItem(null);
     } catch {
-      setMessage("❌ Failed to update salary");
+      toast.error("Failed to update salary");
     }
   };
 
@@ -391,11 +392,6 @@ export default function PayrollPage() {
         </div>
       )}
 
-      {message && (
-        <p className="text-center text-sm font-medium text-green-700">
-          {message}
-        </p>
-      )}
     </div>
   );
 }
@@ -427,9 +423,8 @@ function Table({
           {rows.map((r, i) => (
             <tr
               key={i}
-              className={`${
-                i % 2 === 0 ? "bg-white" : "bg-gray-50"
-              } hover:bg-blue-50 transition align-middle`}
+              className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                } hover:bg-blue-50 transition align-middle`}
             >
               {r.map((c, j) => (
                 <td key={j} className="py-3 px-4 text-gray-700 align-middle">

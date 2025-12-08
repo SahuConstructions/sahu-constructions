@@ -6,14 +6,16 @@ import Sidebar from "@/components/Sidebar";
 import HeaderBar from "@/components/HeaderBar";
 import api from "@/lib/api";
 import { AnimatePresence, motion } from "framer-motion";
+import { useToast } from "@/context/ToastContext";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [mustReset, setMustReset] = useState(false);
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const toast = useToast();
   const router = useRouter();
 
   useEffect(() => {
@@ -22,23 +24,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (flag === "true") {
       setMustReset(true);
     }
-  }, []);  
+  }, []);
 
   const handleChangePassword = async (e: any) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      setMessage("⚠️ Passwords do not match");
+      toast.warning("Passwords do not match");
       return;
     }
     try {
       await api.post("/auth/change-password", { oldPassword, newPassword });
-      setMessage("✅ Password updated successfully! Logging out...");
+      toast.success("Password updated successfully! Logging out...");
       setTimeout(() => {
         localStorage.clear();
         router.push("/");
       }, 2000);
     } catch (err: any) {
-      setMessage(err.response?.data?.message || "❌ Failed to reset password");
+      toast.error(err.response?.data?.message || "Failed to reset password");
     }
   };
 
@@ -86,26 +88,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               Update Password
             </button>
-            {message && (
-              <p
-                className={`text-sm font-medium ${
-                  message.startsWith("✅")
-                    ? "text-green-600"
-                    : message.startsWith("⚠️")
-                    ? "text-yellow-600"
-                    : "text-red-600"
-                }`}
-              >
-                {message}
-              </p>
-            )}
+
           </form>
         </div>
       ) : (
         <>
           {/* Sidebar and header stay the same */}
           <aside className="hidden md:flex fixed inset-y-0 left-0 z-30">
-            <Sidebar isOpen={true} toggle={() => setIsSidebarOpen(false)} />
+            <Sidebar
+              isOpen={true}
+              toggle={() => setIsSidebarOpen(false)}
+              isCollapsed={isCollapsed}
+              toggleCollapse={() => setIsCollapsed(!isCollapsed)}
+            />
           </aside>
 
           <AnimatePresence>
@@ -129,16 +124,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <Sidebar
                     isOpen={isSidebarOpen}
                     toggle={() => setIsSidebarOpen(false)}
+                    isCollapsed={false}
                   />
                 </motion.aside>
               </>
             )}
           </AnimatePresence>
 
-          <div className="flex flex-col flex-1 min-h-screen md:ml-64 transition-all">
+          <div className={`flex flex-col flex-1 min-h-screen transition-all duration-300 ease-in-out ${isCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
             <HeaderBar toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
             <main className="flex-1 overflow-y-auto bg-gray-50 px-4 sm:px-6 md:px-8 py-6">
-              <div className="max-w-7xl mx-auto fade-in">{children}</div>
+              <div className="w-full mx-auto fade-in">{children}</div>
             </main>
           </div>
         </>

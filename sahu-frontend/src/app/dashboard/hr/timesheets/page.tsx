@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getUserFromToken } from "@/lib/auth";
 import api from "@/lib/api";
 import { FileText, CheckCircle, XCircle, RefreshCcw, User } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 import dayjs from "dayjs";
 
 /**
@@ -15,7 +16,7 @@ export default function HrTimesheetApprovalsPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [timesheets, setTimesheets] = useState<any[]>([]);
-  const [message, setMessage] = useState("");
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -32,12 +33,11 @@ export default function HrTimesheetApprovalsPage() {
     setLoading(true);
     try {
       const res = await api.get("/timesheets");
-      // Show only PendingHR timesheets (sent by Manager)
-      const filtered = res.data.filter((t: any) => t.status === "PendingHR");
-      setTimesheets(filtered);
+      // Store all timesheets to allow history viewing
+      setTimesheets(res.data || []);
     } catch (err) {
       console.error(err);
-      setMessage("❌ Failed to fetch timesheets");
+      toast.error("Failed to fetch timesheets");
     } finally {
       setLoading(false);
     }
@@ -49,16 +49,15 @@ export default function HrTimesheetApprovalsPage() {
   ) => {
     try {
       await api.post(`/timesheets/${id}/action`, { action: status });
-      setMessage(
-        `✅ Timesheet ${id} ${status === "approve" ? "approved" : "rejected"} successfully`
+      toast.success(
+        `Timesheet ${id} ${status === "approve" ? "approved" : "rejected"} successfully`
       );
       fetchTimesheets();
     } catch (err) {
       console.error(err);
-      setMessage("❌ Failed to update timesheet status");
+      toast.error("Failed to update timesheet status");
     }
   };
-
 
   return (
     <div className="space-y-8">
@@ -89,7 +88,7 @@ export default function HrTimesheetApprovalsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard
           label="Pending HR Reviews"
-          value={timesheets.length}
+          value={timesheets.filter(t => t.status === "PendingHR").length}
           sub="Awaiting HR Approval"
           color="bg-gradient-to-b from-slate-900 to-blue-900"
         />
@@ -113,66 +112,100 @@ export default function HrTimesheetApprovalsPage() {
         />
       </div>
 
-      {/* Timesheet Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        {loading ? (
-          <p className="text-gray-500 text-sm">Loading timesheets...</p>
-        ) : timesheets.length === 0 ? (
-          <p className="text-gray-600 text-sm">
-            No pending timesheets for HR review.
-          </p>
-        ) : (
-          <Table
-            headers={[
-              "Employee",
-              "Date",
-              "Project",
-              "Task",
-              "Hours",
-              "Status",
-              "Action",
-            ]}
-            rows={timesheets.map((t) => [
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-gray-600" />
-                {t.employee?.name || "-"}
-              </div>,
-              t.date?.substring(0, 10),
-              t.project,
-              t.task,
-              t.hours,
-              <StatusBadge status={t.status} />,
-              <div className="flex gap-2">
-                <button
-                  onClick={() => updateTimesheetStatus(t.id, "approve")}
-                  className="flex items-center gap-1 bg-green-700 hover:bg-green-600 text-white px-3 py-1 rounded-md text-xs font-semibold transition"
-                >
-                  <CheckCircle size={14} />
-                  Approve
-                </button>
+      {/* 🕒 Pending Approvals */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          Pending Approvals
+          <span className="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full">
+            {timesheets.filter(t => t.status === "PendingHR").length}
+          </span>
+        </h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          {timesheets.filter(t => t.status === "PendingHR").length === 0 ? (
+            <p className="text-gray-600 text-sm">No pending timesheets for HR review.</p>
+          ) : (
+            <Table
+              headers={[
+                "Employee",
+                "Date",
+                "Project",
+                "Task",
+                "Hours",
+                "Status",
+                "Action",
+              ]}
+              rows={timesheets
+                .filter(t => t.status === "PendingHR")
+                .map((t) => [
+                  <div key={t.id + 'user'} className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-gray-600" />
+                    {t.employee?.name || "-"}
+                  </div>,
+                  t.date?.substring(0, 10),
+                  t.project,
+                  t.task,
+                  t.hours,
+                  <StatusBadge key={t.id + 'badge'} status={t.status} />,
+                  <div key={t.id + 'actions'} className="flex gap-2">
+                    <button
+                      onClick={() => updateTimesheetStatus(t.id, "approve")}
+                      className="flex items-center gap-1 bg-green-700 hover:bg-green-600 text-white px-3 py-1 rounded-md text-xs font-semibold transition"
+                    >
+                      <CheckCircle size={14} />
+                      Approve
+                    </button>
 
-                <button
-                  onClick={() => updateTimesheetStatus(t.id, "reject")}
-                  className="flex items-center gap-1 bg-red-700 hover:bg-red-600 text-white px-3 py-1 rounded-md text-xs font-semibold transition"
-                >
-                  <XCircle size={14} />
-                  Reject
-                </button>
+                    <button
+                      onClick={() => updateTimesheetStatus(t.id, "reject")}
+                      className="flex items-center gap-1 bg-red-700 hover:bg-red-600 text-white px-3 py-1 rounded-md text-xs font-semibold transition"
+                    >
+                      <XCircle size={14} />
+                      Reject
+                    </button>
 
-              </div>,
-            ])}
-          />
-        )}
+                  </div>,
+                ])}
+            />
+          )}
+        </div>
       </div>
 
-      {message && (
-        <p
-          className={`text-center text-sm font-medium ${message.includes("✅") ? "text-green-600" : "text-red-600"
-            }`}
-        >
-          {message}
-        </p>
-      )}
+      {/* 📜 Timesheet History */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          Timesheet History
+        </h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          {timesheets.filter(t => t.status !== "PendingHR").length === 0 ? (
+            <p className="text-gray-600 text-sm">No history found.</p>
+          ) : (
+            <Table
+              headers={[
+                "Employee",
+                "Date",
+                "Project",
+                "Task",
+                "Hours",
+                "Status",
+              ]}
+              rows={timesheets
+                .filter(t => t.status !== "PendingHR")
+                .map((t) => [
+                  <div key={t.id + 'user_hist'} className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-gray-600" />
+                    {t.employee?.name || "-"}
+                  </div>,
+                  t.date?.substring(0, 10),
+                  t.project,
+                  t.task,
+                  t.hours,
+                  <StatusBadge key={t.id + 'badge_hist'} status={t.status} />,
+                ])}
+            />
+          )}
+        </div>
+      </div>
+
     </div>
   );
 }
@@ -228,7 +261,7 @@ function Table({
                 } hover:bg-amber-50/40 transition-all`}
             >
               {r.map((c, j) => (
-                <td key={j} className="py-3 align-top text-gray-700">
+                <td key={j} className="py-3 px-4 align-top text-gray-700">
                   {c}
                 </td>
               ))}

@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { getUserFromToken } from "@/lib/auth";
 import api from "@/lib/api";
 import { CalendarClock, Building2, CheckCircle, XCircle, RefreshCcw } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 
 export default function HRLeavesPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [leaves, setLeaves] = useState<any[]>([]);
   const [balances, setBalances] = useState<any[]>([]);
-  const [message, setMessage] = useState("");
+  const toast = useToast();
 
   useEffect(() => {
     const u = getUserFromToken();
@@ -26,10 +27,10 @@ export default function HRLeavesPage() {
 
   const fetchLeaves = async () => {
     try {
-      const res = await api.get("/leaves/pending");
+      const res = await api.get("/leaves/history");
       setLeaves(res.data || []);
     } catch {
-      setMessage("❌ Failed to fetch pending leaves");
+      toast.error("Failed to fetch leaves history");
     }
   };
 
@@ -45,11 +46,11 @@ export default function HRLeavesPage() {
   const takeAction = async (id: number, action: "approve" | "reject") => {
     try {
       await api.post(`/leaves/${id}/action`, { action, comments: "" });
-      setMessage(`✅ Leave ${id} ${action}d successfully`);
+      toast.success(`Leave ${id} ${action}d successfully`);
       fetchLeaves();
       fetchBalances();
     } catch {
-      setMessage(`❌ Failed to ${action} leave ${id}`);
+      toast.error(`Failed to ${action} leave ${id}`);
     }
   };
 
@@ -60,7 +61,7 @@ export default function HRLeavesPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
             <CalendarClock className="w-6 h-6 text-blue-600" />
-            Pending Leave Requests
+            Leave Applications & History
           </h1>
           <p className="text-sm text-gray-500">
             Approve or reject pending leave applications from employees.
@@ -78,49 +79,81 @@ export default function HRLeavesPage() {
         </button>
       </div>
 
-      {/* 🕒 Pending Leave Approvals */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        {leaves.length === 0 ? (
-          <p className="text-gray-600 text-sm">No pending leaves found.</p>
-        ) : (
-          <Table
-            headers={[
-              "ID",
-              "Employee",
-              "Type",
-              "Dates",
-              "Reason",
-              "Status",
-              "Action",
-            ]}
-            rows={leaves.map((l) => [
-              l.id,
-              l.employee?.name,
-              l.type,
-              `${l.startDate?.substring(0, 10)} → ${l.endDate?.substring(0, 10)}`,
-              l.reason || "-",
-              <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-md text-xs font-semibold">
-                {l.status}
-              </span>,
-              <div className="flex gap-2">
-                <button
-                  onClick={() => takeAction(l.id, "approve")}
-                  className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md text-xs font-semibold transition"
-                >
-                  <CheckCircle size={14} />
-                  Approve
-                </button>
-                <button
-                  onClick={() => takeAction(l.id, "reject")}
-                  className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-xs font-semibold transition"
-                >
-                  <XCircle size={14} />
-                  Reject
-                </button>
-              </div>,
-            ])}
-          />
-        )}
+      {/* 🕒 Pending Approvals */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          Pending Approvals
+          <span className="bg-orange-100 text-orange-800 text-xs px-2 py-0.5 rounded-full">
+            {leaves.filter(l => l.status === "PendingHR").length}
+          </span>
+        </h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          {leaves.filter(l => l.status === "PendingHR").length === 0 ? (
+            <p className="text-gray-600 text-sm">No pending approvals found.</p>
+          ) : (
+            <Table
+              headers={["ID", "Employee", "Type", "Dates", "Reason", "Status", "Action"]}
+              rows={leaves
+                .filter(l => l.status === "PendingHR")
+                .map((l) => [
+                  l.id,
+                  l.employee?.name,
+                  l.type,
+                  `${l.startDate?.substring(0, 10)} → ${l.endDate?.substring(0, 10)}`,
+                  l.reason || "-",
+                  <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-md text-xs font-semibold">
+                    {l.status}
+                  </span>,
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => takeAction(l.id, "approve")}
+                      className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md text-xs font-semibold transition"
+                    >
+                      <CheckCircle size={14} />
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => takeAction(l.id, "reject")}
+                      className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-xs font-semibold transition"
+                    >
+                      <XCircle size={14} />
+                      Reject
+                    </button>
+                  </div>,
+                ])}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* 📜 Past History */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          Approval History
+        </h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          {leaves.filter(l => l.status !== "PendingHR").length === 0 ? (
+            <p className="text-gray-600 text-sm">No history found.</p>
+          ) : (
+            <Table
+              headers={["ID", "Employee", "Type", "Dates", "Reason", "Status"]}
+              rows={leaves
+                .filter(l => l.status !== "PendingHR")
+                .map((l) => [
+                  l.id,
+                  l.employee?.name,
+                  l.type,
+                  `${l.startDate?.substring(0, 10)} → ${l.endDate?.substring(0, 10)}`,
+                  l.reason || "-",
+                  <span className={`px-2 py-1 rounded-md text-xs font-semibold ${l.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                      l.status.includes('Reject') ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                    {l.status}
+                  </span>
+                ])}
+            />
+          )}
+        </div>
       </div>
 
       {/* 🏢 Org Leave Balances */}
@@ -151,9 +184,8 @@ export default function HRLeavesPage() {
                 balances.map((b, i) => (
                   <tr
                     key={i}
-                    className={`${
-                      i % 2 === 0 ? "bg-white" : "bg-gray-50"
-                    } hover:bg-blue-50/40 transition-all`}
+                    className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                      } hover:bg-blue-50/40 transition-all`}
                   >
                     <td className="py-3 px-4 font-medium">{b.name}</td>
                     <td className="py-3 px-4 text-center">
@@ -166,9 +198,8 @@ export default function HRLeavesPage() {
                       {b.remaining.other} / {b.entitlement.other}
                     </td>
                     <td
-                      className={`py-3 px-4 text-center text-xs font-semibold ${
-                        b.confirmed ? "text-green-600" : "text-yellow-600"
-                      }`}
+                      className={`py-3 px-4 text-center text-xs font-semibold ${b.confirmed ? "text-green-600" : "text-yellow-600"
+                        }`}
                     >
                       {b.confirmed ? "Confirmed" : "Probation"}
                     </td>
@@ -180,15 +211,6 @@ export default function HRLeavesPage() {
         </div>
       </div>
 
-      {message && (
-        <p
-          className={`text-center text-sm font-medium ${
-            message.includes("✅") ? "text-green-600" : "text-red-600"
-          }`}
-        >
-          {message}
-        </p>
-      )}
     </div>
   );
 }
@@ -220,9 +242,8 @@ function Table({
           {rows.map((r, i) => (
             <tr
               key={i}
-              className={`${
-                i % 2 === 0 ? "bg-white" : "bg-gray-50/60"
-              } hover:bg-blue-50/40 transition-all`}
+              className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50/60"
+                } hover:bg-blue-50/40 transition-all`}
             >
               {r.map((c, j) => (
                 <td key={j} className="py-3 px-4 align-top text-gray-700">

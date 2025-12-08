@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getUserFromToken } from "@/lib/auth";
 import api from "@/lib/api";
-import { Users, Search, RefreshCcw, KeyRound, Copy, Edit, Trash2 } from "lucide-react";
+import { Users, Search, RefreshCcw, KeyRound, Copy, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 
 /**
  * HR Employee Directory Page
@@ -16,7 +17,7 @@ export default function EmployeeDirectoryPage() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const toast = useToast();
 
   // For modal
   const [showModal, setShowModal] = useState(false);
@@ -25,6 +26,8 @@ export default function EmployeeDirectoryPage() {
   // For edit modal
   const [showEditModal, setShowEditModal] = useState(false);
   const [editEmployee, setEditEmployee] = useState<any>(null);
+  const [editStep, setEditStep] = useState(1); // Step wizard state
+  const [managers, setManagers] = useState<any[]>([]); // List of managers for assignment
 
   useEffect(() => {
     const u = getUserFromToken();
@@ -34,6 +37,7 @@ export default function EmployeeDirectoryPage() {
     }
     setUser(u);
     fetchEmployees();
+    fetchManagers();
   }, []);
 
   const fetchEmployees = async () => {
@@ -43,9 +47,23 @@ export default function EmployeeDirectoryPage() {
       setEmployees(res.data || []);
     } catch (err) {
       console.error(err);
-      setMessage("❌ Failed to fetch employees");
+      toast.error("Failed to fetch employees");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchManagers = async () => {
+    try {
+      const res = await api.get("/employees");
+      console.log("All employees:", res.data);
+      // Filter only users with MANAGER role - check user.role since role is on User model
+      const managersList = (res.data || []).filter((emp: any) => emp.user?.role === "MANAGER");
+      console.log("Filtered managers:", managersList);
+      setManagers(managersList);
+    } catch (err) {
+      console.error("Failed to fetch managers", err);
+      toast.error("Failed to load managers list");
     }
   };
 
@@ -69,13 +87,13 @@ export default function EmployeeDirectoryPage() {
           password: newPass,
         });
         setShowModal(true);
-        setMessage(`✅ Temporary password for ${emp.name} regenerated.`);
+        toast.success(`Temporary password for ${emp.name} regenerated.`);
       } else {
-        setMessage("⚠️ Something went wrong. No password returned.");
+        toast.warning("Something went wrong. No password returned.");
       }
     } catch (err) {
       console.error(err);
-      setMessage("❌ Failed to reset password.");
+      toast.error("Failed to reset password.");
     }
   };
 
@@ -87,11 +105,23 @@ export default function EmployeeDirectoryPage() {
   // ✅ HR: Edit employee
   const handleEdit = (emp: any) => {
     setEditEmployee(emp);
+    setEditStep(1); // Reset to first step
     setShowEditModal(true);
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    console.log('Form submit triggered, current step:', editStep);
+
+    // Only submit if on the final step
+    if (editStep !== 4) {
+      console.log('Not on step 4, preventing submission');
+      return;
+    }
+
+    console.log('On step 4, proceeding with submission');
+
     if (!editEmployee) return;
 
     try {
@@ -103,6 +133,7 @@ export default function EmployeeDirectoryPage() {
         designation: editEmployee.designation,
         department: editEmployee.department,
         location: editEmployee.location,
+        managerId: editEmployee.managerId, // Include assigned manager
         basicSalary: editEmployee.basicSalary,
         hra: editEmployee.hra,
         otherAllowance: editEmployee.otherAllowance,
@@ -110,13 +141,16 @@ export default function EmployeeDirectoryPage() {
         pt: editEmployee.pt,
         pfNumber: editEmployee.pfNumber,
         uan: editEmployee.uan,
+        inTime: editEmployee.inTime || null,
+        outTime: editEmployee.outTime || null,
       });
-      setMessage(`✅ Employee ${editEmployee.name} updated successfully.`);
+      toast.success(`Employee ${editEmployee.name} updated successfully.`);
       setShowEditModal(false);
+      setEditStep(1); // Reset step
       fetchEmployees();
     } catch (err) {
       console.error(err);
-      setMessage("❌ Failed to update employee.");
+      toast.error("Failed to update employee.");
     }
   };
 
@@ -131,11 +165,11 @@ export default function EmployeeDirectoryPage() {
 
     try {
       await api.delete(`/employees/${emp.id}`);
-      setMessage(`✅ Employee ${emp.name} deleted successfully.`);
+      toast.success(`Employee ${emp.name} deleted successfully.`);
       fetchEmployees();
     } catch (err) {
       console.error(err);
-      setMessage("❌ Failed to delete employee.");
+      toast.error("Failed to delete employee.");
     }
   };
 
@@ -149,7 +183,7 @@ export default function EmployeeDirectoryPage() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 p-6">
       {/* Header */}
       <div className="rounded-2xl border bg-white shadow-sm p-6 flex justify-between items-center">
         <div>
@@ -165,9 +199,8 @@ export default function EmployeeDirectoryPage() {
         <button
           onClick={fetchEmployees}
           disabled={loading}
-          className={`flex items-center gap-2 bg-gradient-to-b from-slate-800 to-blue-800 text-white px-4 py-2 rounded-md text-sm font-medium transition ${
-            loading ? "opacity-70 cursor-not-allowed" : ""
-          }`}
+          className={`flex items-center gap-2 bg-gradient-to-b from-slate-800 to-blue-800 text-white px-4 py-2 rounded-md text-sm font-medium transition ${loading ? "opacity-70 cursor-not-allowed" : ""
+            }`}
         >
           <RefreshCcw size={16} />
           {loading ? "Refreshing..." : "Refresh"}
@@ -220,15 +253,14 @@ export default function EmployeeDirectoryPage() {
               <span className="font-medium text-gray-800">{emp.name}</span>,
               emp.user?.email || "-",
               <span
-                className={`px-2 py-1 rounded-md text-xs font-semibold ${
-                  emp.user?.role === "ADMIN"
-                    ? "bg-purple-100 text-purple-700"
-                    : emp.user?.role === "HR"
+                className={`px-2 py-1 rounded-md text-xs font-semibold ${emp.user?.role === "ADMIN"
+                  ? "bg-purple-100 text-purple-700"
+                  : emp.user?.role === "HR"
                     ? "bg-blue-100 text-blue-700"
                     : emp.user?.role === "MANAGER"
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-green-100 text-green-700"
-                }`}
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-green-100 text-green-700"
+                  }`}
               >
                 {emp.user?.role || "-"}
               </span>,
@@ -265,18 +297,26 @@ export default function EmployeeDirectoryPage() {
         )}
       </div>
 
-      {/* Edit Employee Modal */}
+      {/* Edit Employee Modal - Step Wizard */}
       {showEditModal && editEmployee && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
-          <div className="bg-white p-6 rounded-xl w-full max-w-3xl shadow-lg border border-gray-200 my-8 relative">
+          <div className="bg-white p-6 rounded-xl w-full max-w-6xl shadow-lg border border-gray-200 my-8 relative">
             <div className="flex items-center justify-between mb-4 pb-3 border-b">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <Edit className="text-blue-600" />
-                Edit Employee
-              </h2>
+              <div>
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <Edit className="text-blue-600" />
+                  Edit Employee
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Step {editStep} of 4: Update employee information
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={() => setShowEditModal(false)}
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditStep(1);
+                }}
                 className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-full"
                 title="Close"
               >
@@ -296,245 +336,396 @@ export default function EmployeeDirectoryPage() {
                 </svg>
               </button>
             </div>
-            <form onSubmit={handleEditSubmit} className="space-y-6 max-h-[calc(90vh-120px)] overflow-y-auto pr-2">
-              {/* Personal Information */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 border-b pb-2">
-                  Personal Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={editEmployee.name || ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, name: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      required
-                    />
+
+            {/* Step Indicator */}
+            <div className="flex items-center justify-center mb-6">
+              {[1, 2, 3, 4].map((step, index) => (
+                <div key={step} className="flex items-center">
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center font-semibold text-sm transition-all ${editStep === step
+                        ? "bg-blue-600 text-white shadow-lg"
+                        : editStep > step
+                          ? "bg-green-500 text-white"
+                          : "bg-gray-200 text-gray-500"
+                        }`}
+                    >
+                      {step}
+                    </div>
+                    <span className={`text-xs mt-1 font-medium ${editStep === step ? "text-blue-600" : "text-gray-500"
+                      }`}>
+                      {step === 1 && "Personal"}
+                      {step === 2 && "Job"}
+                      {step === 3 && "Salary"}
+                      {step === 4 && "Other"}
+                    </span>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Phone
-                    </label>
-                    <input
-                      type="text"
-                      value={editEmployee.phone || ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, phone: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Date of Birth
-                    </label>
-                    <input
-                      type="date"
-                      value={editEmployee.dob ? editEmployee.dob.substring(0, 10) : ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, dob: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Address
-                    </label>
-                    <input
-                      type="text"
-                      value={editEmployee.address || ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, address: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
+                  {index < 3 && (
+                    <div className={`w-16 h-0.5 mx-2 mb-5 ${editStep > step ? "bg-green-500" : "bg-gray-300"
+                      }`} />
+                  )}
                 </div>
+              ))}
+            </div>
+
+            <form
+              onSubmit={handleEditSubmit}
+              onKeyDown={(e) => {
+                // Prevent form submission on Enter key
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                }
+              }}
+              className="space-y-6"
+            >
+              {/* Step Content */}
+              <div className="min-h-[400px]">
+                {/* Step 1: Personal Information */}
+                {editStep === 1 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={editEmployee.name || ""}
+                        onChange={(e) =>
+                          setEditEmployee({ ...editEmployee, name: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone
+                      </label>
+                      <input
+                        type="text"
+                        value={editEmployee.phone || ""}
+                        onChange={(e) =>
+                          setEditEmployee({ ...editEmployee, phone: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Date of Birth
+                      </label>
+                      <input
+                        type="date"
+                        value={editEmployee.dob ? editEmployee.dob.substring(0, 10) : ""}
+                        onChange={(e) =>
+                          setEditEmployee({ ...editEmployee, dob: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Address
+                      </label>
+                      <input
+                        type="text"
+                        value={editEmployee.address || ""}
+                        onChange={(e) =>
+                          setEditEmployee({ ...editEmployee, address: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: Job Information */}
+                {editStep === 2 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Designation
+                      </label>
+                      <input
+                        type="text"
+                        value={editEmployee.designation || ""}
+                        onChange={(e) =>
+                          setEditEmployee({ ...editEmployee, designation: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Department
+                      </label>
+                      <input
+                        type="text"
+                        value={editEmployee.department || ""}
+                        onChange={(e) =>
+                          setEditEmployee({ ...editEmployee, department: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Location
+                      </label>
+                      <input
+                        type="text"
+                        value={editEmployee.location || ""}
+                        onChange={(e) =>
+                          setEditEmployee({ ...editEmployee, location: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Assigned Manager
+                      </label>
+                      <select
+                        value={editEmployee.managerId || ""}
+                        onChange={(e) =>
+                          setEditEmployee({ ...editEmployee, managerId: e.target.value ? parseInt(e.target.value) : null })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      >
+                        <option value="">No Manager</option>
+                        {managers.map((mgr) => (
+                          <option key={mgr.id} value={mgr.id}>
+                            {mgr.name} ({mgr.email})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Select the manager this employee reports to
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Salary Information */}
+                {editStep === 3 && (
+                  <div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Basic Salary (₹)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editEmployee.basicSalary || ""}
+                          onChange={(e) =>
+                            setEditEmployee({ ...editEmployee, basicSalary: parseFloat(e.target.value) || 0 })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          HRA (₹)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editEmployee.hra || ""}
+                          onChange={(e) =>
+                            setEditEmployee({ ...editEmployee, hra: parseFloat(e.target.value) || 0 })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Other Allowance (₹)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editEmployee.otherAllowance || ""}
+                          onChange={(e) =>
+                            setEditEmployee({ ...editEmployee, otherAllowance: parseFloat(e.target.value) || 0 })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          PF (₹)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editEmployee.pf || ""}
+                          onChange={(e) =>
+                            setEditEmployee({ ...editEmployee, pf: parseFloat(e.target.value) || 0 })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          PT (₹)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editEmployee.pt || ""}
+                          onChange={(e) =>
+                            setEditEmployee({ ...editEmployee, pt: parseFloat(e.target.value) || 0 })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Salary Summary */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                      <h4 className="font-semibold text-gray-800 mb-2">Salary Summary</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <p className="text-gray-600">Gross Salary:</p>
+                        <p className="font-semibold">
+                          ₹{((editEmployee.basicSalary || 0) + (editEmployee.hra || 0) + (editEmployee.otherAllowance || 0)).toLocaleString()}
+                        </p>
+                        <p className="text-gray-600">Total Deductions:</p>
+                        <p className="font-semibold text-red-600">
+                          -₹{((editEmployee.pf || 0) + (editEmployee.pt || 0)).toLocaleString()}
+                        </p>
+                        <p className="text-gray-800 font-bold">Net Salary:</p>
+                        <p className="font-bold text-green-600">
+                          ₹{((editEmployee.basicSalary || 0) + (editEmployee.hra || 0) + (editEmployee.otherAllowance || 0) - (editEmployee.pf || 0) - (editEmployee.pt || 0)).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4: PF Information & Work Timing */}
+                {editStep === 4 && (
+                  <div className="space-y-6">
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">PF Information</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            PF Number
+                          </label>
+                          <input
+                            type="text"
+                            value={editEmployee.pfNumber || ""}
+                            onChange={(e) =>
+                              setEditEmployee({ ...editEmployee, pfNumber: e.target.value })
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            UAN Number
+                          </label>
+                          <input
+                            type="text"
+                            value={editEmployee.uan || ""}
+                            onChange={(e) =>
+                              setEditEmployee({ ...editEmployee, uan: e.target.value })
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Work Timing</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            In Time
+                          </label>
+                          <input
+                            type="time"
+                            value={editEmployee.inTime || ""}
+                            onChange={(e) =>
+                              setEditEmployee({ ...editEmployee, inTime: e.target.value })
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Out Time
+                          </label>
+                          <input
+                            type="time"
+                            value={editEmployee.outTime || ""}
+                            onChange={(e) =>
+                              setEditEmployee({ ...editEmployee, outTime: e.target.value })
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Job Information */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 border-b pb-2">
-                  Job Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Designation
-                    </label>
-                    <input
-                      type="text"
-                      value={editEmployee.designation || ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, designation: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Department
-                    </label>
-                    <input
-                      type="text"
-                      value={editEmployee.department || ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, department: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Location
-                    </label>
-                    <input
-                      type="text"
-                      value={editEmployee.location || ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, location: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Salary Information */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 border-b pb-2">
-                  Salary Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Basic Salary (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editEmployee.basicSalary || ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, basicSalary: parseFloat(e.target.value) || 0 })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      HRA (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editEmployee.hra || ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, hra: parseFloat(e.target.value) || 0 })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Other Allowance (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editEmployee.otherAllowance || ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, otherAllowance: parseFloat(e.target.value) || 0 })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      PF (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editEmployee.pf || ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, pf: parseFloat(e.target.value) || 0 })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      PT (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editEmployee.pt || ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, pt: parseFloat(e.target.value) || 0 })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* PF Information */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 border-b pb-2">
-                  PF Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      PF Number
-                    </label>
-                    <input
-                      type="text"
-                      value={editEmployee.pfNumber || ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, pfNumber: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      UAN Number
-                    </label>
-                    <input
-                      type="text"
-                      value={editEmployee.uan || ""}
-                      onChange={(e) =>
-                        setEditEmployee({ ...editEmployee, uan: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+              {/* Navigation Buttons */}
+              <div className="flex justify-between pt-6 border-t">
                 <button
                   type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setEditStep(prev => Math.max(prev - 1, 1));
+                  }}
+                  disabled={editStep === 1}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition ${editStep === 1
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
                 >
-                  Cancel
+                  <ChevronLeft size={18} />
+                  Previous
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition"
-                >
-                  Save Changes
-                </button>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEditStep(1);
+                    }}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition"
+                  >
+                    Cancel
+                  </button>
+
+                  {editStep < 4 ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setEditStep(prev => Math.min(prev + 1, 4));
+                      }}
+                      className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition"
+                    >
+                      Next
+                      <ChevronRight size={18} />
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition"
+                    >
+                      Save Changes
+                    </button>
+                  )}
+                </div>
               </div>
             </form>
           </div>
@@ -616,15 +807,6 @@ export default function EmployeeDirectoryPage() {
         </div>
       )}
 
-      {message && (
-        <p
-          className={`text-center text-sm font-medium ${
-            message.includes("✅") ? "text-green-600" : "text-red-600"
-          }`}
-        >
-          {message}
-        </p>
-      )}
     </div>
   );
 }
@@ -656,9 +838,8 @@ function Table({
           {rows.map((r, i) => (
             <tr
               key={i}
-              className={`${
-                i % 2 === 0 ? "bg-white" : "bg-gray-50/60"
-              } hover:bg-blue-50/40 transition-all`}
+              className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50/60"
+                } hover:bg-blue-50/40 transition-all`}
             >
               {r.map((c, j) => (
                 <td key={j} className="py-3 px-4 align-top text-gray-700">
@@ -672,7 +853,3 @@ function Table({
     </div>
   );
 }
-//       employee,
-//       tempPassword: tempPasswordPlain, // send plain temp password for email
-//     };
-//   }

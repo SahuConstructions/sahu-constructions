@@ -6,6 +6,7 @@ import { getUserFromToken } from "@/lib/auth";
 import api from "@/lib/api";
 import dayjs from "dayjs";
 import { Users, CalendarClock } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 
 /**
  * HR Workforce Summary Page
@@ -19,7 +20,7 @@ export default function WorkforceSummaryPage() {
   const [selectedEmployeeDetail, setSelectedEmployeeDetail] = useState<any[]>([]);
   const [selectedEmployeeName, setSelectedEmployeeName] = useState("");
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [message, setMessage] = useState("");
+  const toast = useToast();
 
   const [reportMonth, setReportMonth] = useState(dayjs().month() + 1);
   const [reportYear, setReportYear] = useState(dayjs().year());
@@ -40,7 +41,7 @@ export default function WorkforceSummaryPage() {
       setEmployeeSummary(res.data);
     } catch (err) {
       console.error(err);
-      setMessage("❌ Failed to fetch workforce summary");
+      toast.error(" Failed to fetch workforce summary");
     }
   };
 
@@ -54,7 +55,7 @@ export default function WorkforceSummaryPage() {
       );
       setSelectedEmployeeDetail(res.data || []);
     } catch {
-      setMessage("❌ Failed to fetch employee detail");
+      toast.error(" Failed to fetch employee detail");
     }
   };
 
@@ -148,9 +149,7 @@ export default function WorkforceSummaryPage() {
         />
       )}
 
-      {message && (
-        <p className="text-center text-red-600 font-medium mt-4">{message}</p>
-      )}
+      
     </div>
   );
 }

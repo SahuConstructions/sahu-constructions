@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   FileDown,
 } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 import dayjs from "dayjs";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -25,7 +26,7 @@ export default function WorkforceSummaryPage() {
   const [showModal, setShowModal] = useState(false);
   const [shiftStartMin, setShiftStartMin] = useState<number | null>(null);
   const [shiftEndMin, setShiftEndMin] = useState<number | null>(null);
-  const [message, setMessage] = useState("");
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
 
   const [reportMonth, setReportMonth] = useState(dayjs().month() + 1);
@@ -48,7 +49,7 @@ export default function WorkforceSummaryPage() {
       setSummary(res.data || []);
     } catch (err) {
       console.error(err);
-      setMessage("❌ Failed to fetch workforce summary");
+      toast.error(" Failed to fetch workforce summary");
     } finally {
       setLoading(false);
     }
@@ -79,7 +80,7 @@ export default function WorkforceSummaryPage() {
       setSelectedDetail(res.data || []);
     } catch (err) {
       console.error(err);
-      setMessage("❌ Failed to fetch attendance detail");
+      toast.error(" Failed to fetch attendance detail");
     }
   };
 
@@ -143,9 +144,8 @@ export default function WorkforceSummaryPage() {
           <button
             onClick={() => fetchWorkforceSummary(reportYear, reportMonth)}
             disabled={loading}
-            className={`flex items-center gap-2 bg-gradient-to-b from-slate-900 to-blue-900 text-white px-4 py-2 rounded-md text-sm font-medium transition ${
-              loading ? "opacity-70 cursor-not-allowed" : ""
-            }`}
+            className={`flex items-center gap-2 bg-gradient-to-b from-slate-900 to-blue-900 text-white px-4 py-2 rounded-md text-sm font-medium transition ${loading ? "opacity-70 cursor-not-allowed" : ""
+              }`}
           >
             <RefreshCcw size={16} />
             {loading ? "Refreshing..." : "Refresh"}
@@ -232,15 +232,7 @@ export default function WorkforceSummaryPage() {
         />
       )}
 
-      {message && (
-        <p
-          className={`text-center text-sm font-medium ${
-            message.includes("✅") ? "text-green-600" : "text-red-600"
-          }`}
-        >
-          {message}
-        </p>
-      )}
+      
     </div>
   );
 }
@@ -272,9 +264,8 @@ function Table({
           {rows.map((r, i) => (
             <tr
               key={i}
-              className={`${
-                i % 2 === 0 ? "bg-white" : "bg-gray-50/60"
-              } hover:bg-indigo-50/40 transition-all`}
+              className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50/60"
+                } hover:bg-indigo-50/40 transition-all`}
             >
               {r.map((c, j) => (
                 <td key={j} className="py-3 px-4 align-top text-gray-700">
@@ -311,7 +302,7 @@ function AttendanceModal({ name, details, onClose, shiftStartMin, shiftEndMin }:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white p-6 rounded-xl w-full max-w-3xl max-h-[80vh] overflow-auto shadow-lg">
+      <div className="bg-white p-6 rounded-xl w-full max-w-6xl max-h-[80vh] overflow-auto shadow-lg">
         <div className="flex justify-between items-center border-b pb-3 mb-4">
           <h3 className="text-lg font-semibold text-gray-800">
             Attendance Details —{" "}
@@ -353,9 +344,8 @@ function AttendanceModal({ name, details, onClose, shiftStartMin, shiftEndMin }:
                 return (
                   <tr
                     key={i}
-                    className={`${
-                      i % 2 === 0 ? "bg-white" : "bg-gray-50"
-                    } hover:bg-indigo-50 transition`}
+                    className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                      } hover:bg-indigo-50 transition`}
                   >
                     <td className="py-2.5 px-3 border-b border-gray-200 text-gray-700">
                       {d.date}
