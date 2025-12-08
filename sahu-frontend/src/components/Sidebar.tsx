@@ -174,9 +174,9 @@ export default function Sidebar({ isOpen, toggle, isCollapsed = false, toggleCol
   };
 
   const getBadgeCount = (id: string) => {
-    if (id === "leaves" && stats.leaves > 0) return stats.leaves;
-    if (id === "timesheets" && stats.timesheets > 0) return stats.timesheets;
-    if (id === "reimbursements" && stats.reimbursements > 0) return stats.reimbursements;
+    if ((id === "leaves" || id === "leaves-group") && stats.leaves > 0) return stats.leaves;
+    if ((id === "timesheets" || id === "timesheets-group") && stats.timesheets > 0) return stats.timesheets;
+    if ((id === "reimbursements" || id === "reimbursements-group") && stats.reimbursements > 0) return stats.reimbursements;
     return 0;
   };
 
@@ -268,7 +268,7 @@ export default function Sidebar({ isOpen, toggle, isCollapsed = false, toggleCol
 
                   {/* 🔔 Badge */}
                   {!isCollapsed && getBadgeCount(item.id) > 0 && (
-                    <span className="ml-auto bg-blue-500 text-slate-200 text-[9px] font-bold px-1 py-0 rounded-full min-w-[16px] text-center align-middle">
+                    <span className="ml-auto bg-blue-600 text-white text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full shadow-sm">
                       {getBadgeCount(item.id)}
                     </span>
                   )}
@@ -306,7 +306,7 @@ export default function Sidebar({ isOpen, toggle, isCollapsed = false, toggleCol
                         <span className="flex-1 text-left">{child.label}</span>
                         {/* 🔔 Submenu Badge */}
                         {getBadgeCount(child.id) > 0 && (
-                          <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                          <span className="bg-blue-600 text-white text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full shadow-sm">
                             {getBadgeCount(child.id)}
                           </span>
                         )}
