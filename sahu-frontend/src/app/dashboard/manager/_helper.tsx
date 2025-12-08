@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 
 function generateWeeklyProductivity(employeeSummary: any[]) {
     const today = dayjs();
