@@ -18,6 +18,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { getUserFromToken } from "@/lib/auth";
+import api from "@/lib/api";
 
 interface NavItem {
   id: string;
@@ -40,6 +41,7 @@ export default function Sidebar({ isOpen, toggle, isCollapsed = false, toggleCol
   const [active, setActive] = useState<string>("");
   const [role, setRole] = useState<string>("employee");
   const [basePath, setBasePath] = useState<string>("/dashboard/employee");
+  const [stats, setStats] = useState({ leaves: 0, timesheets: 0, reimbursements: 0 });
 
   // Load role from token
   useEffect(() => {
@@ -49,9 +51,19 @@ export default function Sidebar({ isOpen, toggle, isCollapsed = false, toggleCol
       setRole(roleName);
       if (["hr", "manager", "admin", "finance", "super admin"].includes(roleName)) {
         setBasePath(`/dashboard/${roleName.replace(" ", "")}`);
+        fetchStats();
       }
     }
   }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await api.get("/dashboard/stats");
+      setStats(res.data);
+    } catch (err) {
+      console.error("Failed to fetch dashboard stats", err);
+    }
+  };
 
   // Active section based on pathname
   useEffect(() => {
@@ -161,6 +173,13 @@ export default function Sidebar({ isOpen, toggle, isCollapsed = false, toggleCol
     setExpandedMenus((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const getBadgeCount = (id: string) => {
+    if (id === "leaves" && stats.leaves > 0) return stats.leaves;
+    if (id === "timesheets" && stats.timesheets > 0) return stats.timesheets;
+    if (id === "reimbursements" && stats.reimbursements > 0) return stats.reimbursements;
+    return 0;
+  };
+
   const handleNavigate = (item: NavItem) => {
     if (item.children) {
       toggleMenu(item.id);
@@ -243,10 +262,16 @@ export default function Sidebar({ isOpen, toggle, isCollapsed = false, toggleCol
                   <div className={`flex-shrink-0 p-1 rounded-md transition-colors duration-200 ${isActive && !item.children ? "bg-slate-200 text-slate-900" : ""}`}>
                     {item.icon}
                   </div>
-                  {/* Label with smooth fade */}
                   <span className={`whitespace-nowrap transition-all duration-300 ease-in-out ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>
                     {item.label}
                   </span>
+
+                  {/* 🔔 Badge */}
+                  {!isCollapsed && getBadgeCount(item.id) > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                      {getBadgeCount(item.id)}
+                    </span>
+                  )}
                 </div>
 
                 {/* Arrow for children */}
@@ -278,7 +303,13 @@ export default function Sidebar({ isOpen, toggle, isCollapsed = false, toggleCol
                         `}
                       >
                         {!isChildSelected && <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60"></span>}
-                        {child.label}
+                        <span className="flex-1 text-left">{child.label}</span>
+                        {/* 🔔 Submenu Badge */}
+                        {getBadgeCount(child.id) > 0 && (
+                          <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                            {getBadgeCount(child.id)}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
