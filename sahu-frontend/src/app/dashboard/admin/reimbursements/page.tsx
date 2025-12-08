@@ -18,6 +18,11 @@ export default function AdminReimbursementsPage() {
     const [loading, setLoading] = useState(false);
     const toast = useToast();
 
+    // 🔹 History filters
+    const [filterMonth, setFilterMonth] = useState<number>(dayjs().month() + 1);
+    const [filterYear, setFilterYear] = useState<number>(dayjs().year());
+    const [filterStatus, setFilterStatus] = useState<string>("ALL");
+
     useEffect(() => {
         const u = getUserFromToken();
         if (!u || u.role !== "ADMIN") {
@@ -195,82 +200,103 @@ export default function AdminReimbursementsPage() {
 
                 {/* 📜 Reimbursement History - Admin Override Enabled */}
                 <div className="space-y-4">
-                    <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                        Reimbursement History
-                    </h2>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <h2 className="text-lg font-semibold text-gray-800">Reimbursement History</h2>
+
+                        {/* 🔹 Filter Controls */}
+                        <div className="flex flex-wrap items-center gap-2">
+                            <select value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))} className="border rounded-md px-2 py-1.5 text-sm bg-white">
+                                {Array.from({ length: 12 }, (_, i) => (<option key={i + 1} value={i + 1}>{dayjs().month(i).format("MMM")}</option>))}
+                            </select>
+                            <select value={filterYear} onChange={(e) => setFilterYear(Number(e.target.value))} className="border rounded-md px-2 py-1.5 text-sm bg-white">
+                                {Array.from({ length: 5 }, (_, i) => { const year = dayjs().year() - 2 + i; return <option key={year} value={year}>{year}</option>; })}
+                            </select>
+                            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="border rounded-md px-2 py-1.5 text-sm bg-white">
+                                <option value="ALL">All Statuses</option>
+                                <option value="APPROVED">Approved</option>
+                                <option value="REJECTED">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        {historyReimbursements.length === 0 ? (
-                            <div className="p-6 text-gray-600 text-sm">No history found.</div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <Table
-                                    headers={[
-                                        "Employee",
-                                        "Amount",
-                                        "Date",
-                                        "Description",
-                                        "Receipt",
-                                        "Status",
-                                        "Notes",
-                                        "Actions",
-                                        "History"
-                                    ]}
-                                    rows={historyReimbursements.map((r) => [
-                                        <span key="emp" className="font-medium text-gray-800 whitespace-nowrap">
-                                            {r.employee?.name}
-                                        </span>,
-                                        <span key="amt" className="font-semibold text-gray-800 whitespace-nowrap">
-                                            ₹{r.amount}
-                                        </span>,
-                                        <span key="date" className="text-gray-600 whitespace-nowrap" style={{ minWidth: '85px' }}>
-                                            {r.createdAt ? dayjs(r.createdAt).format("DD MMM YYYY") : "-"}
-                                        </span>,
-                                        <span key="desc" className="text-gray-600 break-words max-w-[200px]">
-                                            {r.description || "-"}
-                                        </span>,
-                                        r.receiptUrl ? (
-                                            <a key="receipt" href={r.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs font-medium">📎 View</a>
-                                        ) : (
-                                            <span key="receipt" className="text-gray-400 text-xs">No file</span>
-                                        ),
-                                        <StatusBadge key="status" status={getReadableStatus(r.status)} />,
-                                        <input
-                                            key="note"
-                                            type="text"
-                                            placeholder="Add note"
-                                            value={resolutionNotes[r.id] || ""}
-                                            onChange={(e) =>
-                                                setResolutionNotes({ ...resolutionNotes, [r.id]: e.target.value })
-                                            }
-                                            className="border rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 w-[120px]"
-                                        />,
-                                        <div key="actions" className="flex items-center gap-2 justify-center opacity-70 hover:opacity-100 transition-opacity">
+                        {(() => {
+                            const filteredHistory = historyReimbursements
+                                .filter(r => { const date = dayjs(r.createdAt); return date.month() + 1 === filterMonth && date.year() === filterYear; })
+                                .filter(r => filterStatus === "ALL" || r.status === filterStatus);
+
+                            return filteredHistory.length === 0 ? (
+                                <div className="p-6 text-gray-600 text-sm">No history found for selected filters.</div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <Table
+                                        headers={[
+                                            "Employee",
+                                            "Amount",
+                                            "Date",
+                                            "Description",
+                                            "Receipt",
+                                            "Status",
+                                            "Notes",
+                                            "Actions",
+                                            "History"
+                                        ]}
+                                        rows={filteredHistory.map((r) => [
+                                            <span key="emp" className="font-medium text-gray-800 whitespace-nowrap">
+                                                {r.employee?.name}
+                                            </span>,
+                                            <span key="amt" className="font-semibold text-gray-800 whitespace-nowrap">
+                                                ₹{r.amount}
+                                            </span>,
+                                            <span key="date" className="text-gray-600 whitespace-nowrap" style={{ minWidth: '85px' }}>
+                                                {r.createdAt ? dayjs(r.createdAt).format("DD MMM YYYY") : "-"}
+                                            </span>,
+                                            <span key="desc" className="text-gray-600 break-words max-w-[200px]">
+                                                {r.description || "-"}
+                                            </span>,
+                                            r.receiptUrl ? (
+                                                <a key="receipt" href={r.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs font-medium">📎 View</a>
+                                            ) : (
+                                                <span key="receipt" className="text-gray-400 text-xs">No file</span>
+                                            ),
+                                            <StatusBadge key="status" status={getReadableStatus(r.status)} />,
+                                            <input
+                                                key="note"
+                                                type="text"
+                                                placeholder="Add note"
+                                                value={resolutionNotes[r.id] || ""}
+                                                onChange={(e) =>
+                                                    setResolutionNotes({ ...resolutionNotes, [r.id]: e.target.value })
+                                                }
+                                                className="border rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 w-[120px]"
+                                            />,
+                                            <div key="actions" className="flex items-center gap-2 justify-center opacity-70 hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => resolveReimbursement(r.id, "APPROVED")}
+                                                    className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded-md text-[10px] font-medium transition"
+                                                    title="Override: Approve"
+                                                >
+                                                    <CheckCircle size={10} />
+                                                </button>
+                                                <button
+                                                    onClick={() => resolveReimbursement(r.id, "REJECTED")}
+                                                    className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded-md text-[10px] font-medium transition"
+                                                    title="Override: Reject"
+                                                >
+                                                    <XCircle size={10} />
+                                                </button>
+                                            </div>,
                                             <button
-                                                onClick={() => resolveReimbursement(r.id, "APPROVED")}
-                                                className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded-md text-[10px] font-medium transition"
-                                                title="Override: Approve"
+                                                key="view"
+                                                onClick={() => fetchHistory(r.id)}
+                                                className="text-blue-600 underline text-xs font-medium hover:text-blue-800 whitespace-nowrap"
                                             >
-                                                <CheckCircle size={10} />
-                                            </button>
-                                            <button
-                                                onClick={() => resolveReimbursement(r.id, "REJECTED")}
-                                                className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded-md text-[10px] font-medium transition"
-                                                title="Override: Reject"
-                                            >
-                                                <XCircle size={10} />
-                                            </button>
-                                        </div>,
-                                        <button
-                                            key="view"
-                                            onClick={() => fetchHistory(r.id)}
-                                            className="text-blue-600 underline text-xs font-medium hover:text-blue-800 whitespace-nowrap"
-                                        >
-                                            View Log
-                                        </button>,
-                                    ])}
-                                />
-                            </div>
-                        )}
+                                                View Log
+                                            </button>,
+                                        ])}
+                                    />
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
 

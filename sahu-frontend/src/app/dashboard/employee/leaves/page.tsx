@@ -21,6 +21,7 @@ export default function LeavesPage() {
   // Filters
   const [selectedMonth, setSelectedMonth] = useState("All");
   const [selectedYear, setSelectedYear] = useState("All");
+  const [selectedStatus, setSelectedStatus] = useState("All");
 
   const months = [
     "All",
@@ -66,7 +67,7 @@ export default function LeavesPage() {
     }
   };
 
-  const filterLeaves = (month: string, year: string) => {
+  const filterLeaves = (month: string, year: string, status: string) => {
     let filtered = leaves;
     if (month !== "All") {
       const monthIndex = months.indexOf(month);
@@ -79,12 +80,15 @@ export default function LeavesPage() {
         (l) => new Date(l.startDate).getFullYear().toString() === year
       );
     }
+    if (status !== "All") {
+      filtered = filtered.filter((l) => l.status === status);
+    }
     setFilteredLeaves(filtered);
   };
 
   useEffect(() => {
-    filterLeaves(selectedMonth, selectedYear);
-  }, [selectedMonth, selectedYear, leaves]);
+    filterLeaves(selectedMonth, selectedYear, selectedStatus);
+  }, [selectedMonth, selectedYear, selectedStatus, leaves]);
 
   const submitLeave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -248,7 +252,7 @@ export default function LeavesPage() {
       </form>
 
       {/* Message */}
-      
+
 
       {/* Leave History */}
       <div className="bg-white border rounded-lg shadow-sm p-4 sm:p-6">
@@ -282,11 +286,23 @@ export default function LeavesPage() {
                 </option>
               ))}
             </select>
-            {(selectedMonth !== "All" || selectedYear !== "All") && (
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="border rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="All">All Statuses</option>
+              <option value="PendingManager">Pending Manager</option>
+              <option value="PendingHR">Pending HR</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+            {(selectedMonth !== "All" || selectedYear !== "All" || selectedStatus !== "All") && (
               <button
                 onClick={() => {
                   setSelectedMonth("All");
                   setSelectedYear("All");
+                  setSelectedStatus("All");
                 }}
                 className="text-blue-600 hover:underline"
               >

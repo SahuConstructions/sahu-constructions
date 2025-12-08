@@ -6,6 +6,7 @@ import { getUserFromToken } from "@/lib/auth";
 import api from "@/lib/api";
 import { CalendarClock, Users, CheckCircle, XCircle, RefreshCcw } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
+import dayjs from "dayjs";
 
 export default function ManagerLeavesPage() {
   const router = useRouter();
@@ -14,6 +15,11 @@ export default function ManagerLeavesPage() {
   const [balances, setBalances] = useState<any[]>([]);
   const toast = useToast();
   const [loading, setLoading] = useState(false);
+
+  // 🔹 History filters
+  const [filterMonth, setFilterMonth] = useState<number>(dayjs().month() + 1);
+  const [filterYear, setFilterYear] = useState<number>(dayjs().year());
+  const [filterStatus, setFilterStatus] = useState<string>("ALL");
 
   useEffect(() => {
     const u = getUserFromToken();
@@ -177,18 +183,38 @@ export default function ManagerLeavesPage() {
 
       {/* 📜 Past History */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          Approval History
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-gray-800">Approval History</h2>
+
+          {/* 🔹 Filter Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            <select value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))} className="border rounded-md px-2 py-1.5 text-sm bg-white">
+              {Array.from({ length: 12 }, (_, i) => (<option key={i + 1} value={i + 1}>{dayjs().month(i).format("MMM")}</option>))}
+            </select>
+            <select value={filterYear} onChange={(e) => setFilterYear(Number(e.target.value))} className="border rounded-md px-2 py-1.5 text-sm bg-white">
+              {Array.from({ length: 5 }, (_, i) => { const year = dayjs().year() - 2 + i; return <option key={year} value={year}>{year}</option>; })}
+            </select>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="border rounded-md px-2 py-1.5 text-sm bg-white">
+              <option value="ALL">All Statuses</option>
+              <option value="PendingHR">Pending HR</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
         <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-6 overflow-x-auto">
-          {leaves.filter(l => l.status !== "PendingManager").length === 0 ? (
-            <p className="text-gray-600 text-sm">No history found.</p>
-          ) : (
-            <Table
-              headers={["ID", "Employee", "Type", "Dates", "Reason", "Status"]}
-              rows={leaves
-                .filter(l => l.status !== "PendingManager")
-                .map((l) => [
+          {(() => {
+            const filteredHistory = leaves
+              .filter(l => l.status !== "PendingManager")
+              .filter(l => { const date = dayjs(l.startDate); return date.month() + 1 === filterMonth && date.year() === filterYear; })
+              .filter(l => filterStatus === "ALL" || l.status === filterStatus);
+
+            return filteredHistory.length === 0 ? (
+              <p className="text-gray-600 text-sm">No history found for selected filters.</p>
+            ) : (
+              <Table
+                headers={["ID", "Employee", "Type", "Dates", "Reason", "Status"]}
+                rows={filteredHistory.map((l) => [
                   l.id,
                   l.employee?.name || "-",
                   l.type,
@@ -196,17 +222,18 @@ export default function ManagerLeavesPage() {
                   l.reason || "-",
                   <span
                     className={`px-2 py-1 rounded-md text-xs font-semibold ${l.status === "Approved"
-                        ? "bg-green-100 text-green-700"
-                        : l.status.includes("Reject")
-                          ? "bg-red-100 text-red-700"
-                          : "bg-gray-100 text-gray-700"
+                      ? "bg-green-100 text-green-700"
+                      : l.status.includes("Reject")
+                        ? "bg-red-100 text-red-700"
+                        : "bg-gray-100 text-gray-700"
                       }`}
                   >
                     {l.status}
                   </span>,
                 ])}
-            />
-          )}
+              />
+            );
+          })()}
         </div>
       </div>
     </div>
